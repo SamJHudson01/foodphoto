@@ -86,6 +86,19 @@
   font-size: 15px;
 }
 
+.sampleButton {
+  min-height: 42px;
+  margin-top: 22px;
+  padding: 0 16px;
+  border: 1px solid rgba(229, 168, 75, 0.35);
+  border-radius: 999px;
+  color: #1a1208;
+  background: var(--accent-amber);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .header {
   position: relative;
   z-index: 8;

@@ -168,6 +168,59 @@ function blobToDataUrl(blob: Blob) {
   });
 }
 
+function createSamplePhotoBlob(label: string, hue: number) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1000;
+  canvas.height = 1000;
+
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Canvas is not available.");
+
+  const gradient = context.createLinearGradient(0, 0, 1000, 1000);
+  gradient.addColorStop(0, `hsl(${hue} 54% 34%)`);
+  gradient.addColorStop(1, `hsl(${(hue + 42) % 360} 42% 16%)`);
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, 1000, 1000);
+
+  context.fillStyle = "rgba(255, 255, 255, 0.92)";
+  context.beginPath();
+  context.ellipse(500, 540, 330, 260, -0.08, 0, Math.PI * 2);
+  context.fill();
+
+  context.fillStyle = `hsl(${(hue + 120) % 360} 52% 48%)`;
+  context.beginPath();
+  context.arc(390, 510, 108, 0, Math.PI * 2);
+  context.fill();
+
+  context.fillStyle = `hsl(${(hue + 210) % 360} 62% 58%)`;
+  context.beginPath();
+  context.arc(545, 470, 128, 0, Math.PI * 2);
+  context.fill();
+
+  context.fillStyle = `hsl(${(hue + 25) % 360} 72% 55%)`;
+  context.beginPath();
+  context.arc(600, 625, 90, 0, Math.PI * 2);
+  context.fill();
+
+  context.fillStyle = "rgba(13, 15, 14, 0.78)";
+  context.fillRect(0, 790, 1000, 210);
+
+  context.fillStyle = "#f0ede8";
+  context.font = "700 68px system-ui, -apple-system, sans-serif";
+  context.textAlign = "center";
+  context.fillText(label, 500, 910);
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+      } else {
+        reject(new Error("Could not create sample photo."));
+      }
+    }, "image/png");
+  });
+}
+
 function CameraIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -200,6 +253,7 @@ export default function FoodPhotoApp() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const groups = useMemo(() => groupByDay(entries), [entries]);
+  const showSampleData = process.env.NODE_ENV !== "production";
 
   useEffect(() => {
     void refreshEntries();
@@ -355,6 +409,33 @@ export default function FoodPhotoApp() {
     }
   }
 
+  async function addSamplePhotos() {
+    const samples = [
+      { label: "Yogurt bowl", note: "Greek yogurt, berries & granola", hour: 8, minute: 12, dayOffset: 0, hue: 24 },
+      { label: "Lunch bowl", note: "Chicken katsu salad bowl", hour: 13, minute: 25, dayOffset: 0, hue: 92 },
+      { label: "Flat white", note: "Afternoon coffee", hour: 16, minute: 5, dayOffset: 0, hue: 205 },
+      { label: "Avo toast", note: "Avo toast + poached egg", hour: 9, minute: 10, dayOffset: 1, hue: 142 }
+    ];
+
+    await Promise.all(
+      samples.map(async (sample) => {
+        const timestamp = new Date();
+        timestamp.setDate(timestamp.getDate() - sample.dayOffset);
+        timestamp.setHours(sample.hour, sample.minute, 0, 0);
+
+        await addStoredEntry({
+          id: createId(),
+          timestamp: timestamp.getTime(),
+          note: sample.note,
+          photo: await createSamplePhotoBlob(sample.label, sample.hue)
+        });
+      })
+    );
+
+    await refreshEntries();
+    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+  }
+
   return (
     <main className={styles.appShell}>
       <section className={styles.appSurface} aria-label="FoodPhoto">
@@ -379,6 +460,11 @@ export default function FoodPhotoApp() {
               <CameraIcon />
               <h1>No food photos yet</h1>
               <p>Take a photo when you eat. It stays on this device.</p>
+              {showSampleData ? (
+                <button className={styles.sampleButton} type="button" onClick={() => void addSamplePhotos()}>
+                  Add sample photos
+                </button>
+              ) : null}
             </section>
           ) : (
             groups.map((group) => (
