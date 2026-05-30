@@ -144,6 +144,10 @@ BANNED PHRASING:
 Input: Breakfast: Bagel and coffee. Lunch: Fast food burger. Dinner: Pizza out of the box. Notes: "Crazy day at work, didn't have time to think. Blew the diet."
 Output:
 Overview: It sounds like work demanded absolutely everything you had today, and relying on convenience when we are redlining is a completely normal human response.
+Meals:
+- Breakfast: Bagel and coffee, a quick starch-and-caffeine start with low visible protein.
+- Lunch: Fast food burger, a convenience meal with dense energy and limited visible produce.
+- Dinner: Pizza from the box, a low-friction dinner with a beige Color Quotient.
 Observations: I noticed your early meals indexed heavily on quick energy but lacked a visible protein anchor. When we run on starch and caffeine, it almost always guarantees a severe energy crash and intense cravings by the late afternoon.
 Experiment: I'm wondering whether tomorrow we could focus on just one tiny upgrade: would you be open to adding a single palm of protein-like two hard-boiled eggs or a protein shake-alongside that same morning bagel?
 Identity: Every time we anchor the morning, it is a vote for someone who protects their afternoon energy and focus.
@@ -151,6 +155,10 @@ Identity: Every time we anchor the morning, it is a vote for someone who protect
 Input: Breakfast: 3 eggs, oatmeal. Lunch: Chicken salad. Dinner: Salmon, massive portion of rice, small asparagus. Notes: "Rest day today. Legs are heavy."
 Output:
 Overview: Your protein anchoring across every single meal today was incredibly consistent, which is exactly what your body needs to repair those heavy legs.
+Meals:
+- Breakfast: Eggs and oatmeal, a clear protein anchor paired with a steady carbohydrate base.
+- Lunch: Chicken salad, a protein-forward plate with a strong produce footprint.
+- Dinner: Salmon, rice, and asparagus, a performance plate with a larger carbohydrate footprint than the rest-day context suggests.
 Observations: I noticed that while today was a scheduled rest day, your dinner plate visually matched a 'Hard Training Day' template, with roughly half the surface area covered in rice.
 Experiment: On rest days, one option would be to simply swap the visual volume: what if you kept the plate feeling just as full, but made half the plate asparagus and dialed the rice back to a single cupped hand?
 Identity: Aligning the plate geometry with our daily output is the hallmark of a dialed-in performance athlete.
@@ -160,6 +168,7 @@ Identity: Aligning the plate geometry with our daily output is the hallmark of a
 Return EXACTLY the plain-text shape below. No introductory text, no markdown formatting (no asterisks, bolding, or headers), no conversational filler.
 
 Overview: [One clinical sentence. Must lead with an Affirmation or Normalization.]
+Meals: [Bulleted list. Name and briefly describe each visible meal or eating occasion. Use "- Meal name: one short visual description." Do not estimate calories or macro grams.]
 Observations: [2-3 sentences. State the visual evidence using clinical terms (Protein Anchor, Color Quotient, Visual Satiety, Periodization Match). Connect the visual to a physiological outcome.]
 Experiment: [One high-leverage micro-adjustment. Must be an additive habit-stack or visual swap, phrased as a tentative invitation ("Would you be open to...").]
 Identity: [One brief sentence anchoring the experiment to the user's identity.]

@@ -20,7 +20,7 @@ type StoredRoundup = {
 };
 
 type RoundupSection = {
-  label: "Overview" | "Observations" | "Experiment" | "Identity";
+  label: "Overview" | "Meals" | "Observations" | "Experiment" | "Identity";
   text: string;
 };
 
@@ -150,7 +150,7 @@ function groupByDay(entries: FoodEntry[]): DayGroup[] {
 }
 
 function parseRoundupText(text: string): RoundupSection[] {
-  const labels: RoundupSection["label"][] = ["Overview", "Observations", "Experiment", "Identity"];
+  const labels: RoundupSection["label"][] = ["Overview", "Meals", "Observations", "Experiment", "Identity"];
   const sections: RoundupSection[] = [];
 
   for (let index = 0; index < labels.length; index += 1) {
@@ -170,6 +170,15 @@ function parseRoundupText(text: string): RoundupSection[] {
   }
 
   return sections;
+}
+
+function roundupPreview(text: string, sections: RoundupSection[]) {
+  const overview = sections.find((section: RoundupSection) => section.label === "Overview")?.text ?? text;
+  const clean = overview.replace(/\s+/g, " ").trim();
+
+  if (clean.length <= 150) return clean;
+
+  return `${clean.slice(0, 147).trim()}...`;
 }
 
 function dayKey(dayTimestamp: number) {
@@ -630,7 +639,9 @@ function RoundupCard({
   roundup: StoredRoundup | undefined;
   onGenerate: () => void;
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const sections = roundup ? parseRoundupText(roundup.text) : [];
+  const preview = roundup ? roundupPreview(roundup.text, sections) : "";
 
   return (
     <div className={styles.roundupCard}>
@@ -646,18 +657,30 @@ function RoundupCard({
 
       {roundup ? (
         <>
-          {sections.length > 0 ? (
-            <div className={styles.roundupSections}>
-              {sections.map((section: RoundupSection) => (
-                <section className={styles.roundupSection} key={section.label}>
-                  <h3>{section.label}</h3>
-                  <p>{section.text}</p>
-                </section>
-              ))}
-            </div>
-          ) : (
-            <p className={styles.roundupText}>{roundup.text}</p>
-          )}
+          <button
+            className={styles.roundupPreview}
+            type="button"
+            aria-expanded={isExpanded}
+            onClick={() => setIsExpanded((current) => !current)}
+          >
+            <span>{preview}</span>
+            <strong>{isExpanded ? "Collapse" : "Expand"}</strong>
+          </button>
+
+          {isExpanded ? (
+            sections.length > 0 ? (
+              <div className={styles.roundupSections}>
+                {sections.map((section: RoundupSection) => (
+                  <section className={styles.roundupSection} key={section.label}>
+                    <h3>{section.label}</h3>
+                    <p>{section.text}</p>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.roundupText}>{roundup.text}</p>
+            )
+          ) : null}
           <p className={styles.roundupMeta}>Saved for {dateLabel}</p>
         </>
       ) : (
