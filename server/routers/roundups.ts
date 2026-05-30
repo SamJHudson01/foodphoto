@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
@@ -45,6 +46,51 @@ const roundupSelect = {
   createdAt: true,
   updatedAt: true
 } as const;
+
+type RoundupLogData = Record<string, boolean | number | string | null | undefined>;
+
+function fingerprint(value: string) {
+  return createHash("sha256").update(value).digest("hex").slice(0, 12);
+}
+
+function errorDetails(error: unknown) {
+  if (error instanceof TRPCError) {
+    return {
+      code: error.code,
+      message: error.message,
+      name: "TRPCError"
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      name: error.name,
+      stack: error.stack?.split("\n").slice(0, 6).join("\n")
+    };
+  }
+
+  return {
+    message: String(error),
+    name: "UnknownError"
+  };
+}
+
+function logRoundup(level: "error" | "info" | "warn", requestId: string, event: string, data: RoundupLogData = {}) {
+  const line = `[roundups.generate] ${JSON.stringify({
+    requestId,
+    event,
+    ...data
+  })}`;
+
+  if (level === "error") {
+    console.error(line);
+  } else if (level === "warn") {
+    console.warn(line);
+  } else {
+    console.info(line);
+  }
+}
 
 function getRoundupText(result: VertexResponse) {
   return (
@@ -196,10 +242,31 @@ ${textSummary}
 </formatting_rules>`;
 }
 
-async function imagePartFromEntry(entry: RoundupFoodEntry): Promise<VertexPart> {
+async function imagePartFromEntry(entry: RoundupFoodEntry, index: number, requestId: string): Promise<VertexPart> {
+  const startedAt = Date.now();
+  let host = "unknown";
+
+  try {
+    host = new URL(entry.publicUrl).host;
+  } catch {
+    host = "invalid-url";
+  }
+
+  logRoundup("info", requestId, "r2_fetch_started", {
+    contentType: entry.contentType,
+    host,
+    imageIndex: index + 1
+  });
+
   const response = await fetch(entry.publicUrl);
 
   if (!response.ok) {
+    logRoundup("error", requestId, "r2_fetch_failed", {
+      durationMs: Date.now() - startedAt,
+      imageIndex: index + 1,
+      status: response.status
+    });
+
     throw new TRPCError({
       code: "BAD_GATEWAY",
       message: "Stored food photo could not be fetched for the AI roundup."
@@ -208,7 +275,19 @@ async function imagePartFromEntry(entry: RoundupFoodEntry): Promise<VertexPart> 
 
   const bytes = Buffer.from(await response.arrayBuffer());
 
+  logRoundup("info", requestId, "r2_fetch_completed", {
+    byteSize: bytes.byteLength,
+    durationMs: Date.now() - startedAt,
+    imageIndex: index + 1,
+    status: response.status
+  });
+
   if (bytes.byteLength > 7_000_000) {
+    logRoundup("warn", requestId, "r2_image_too_large", {
+      byteSize: bytes.byteLength,
+      imageIndex: index + 1
+    });
+
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "One food photo is too large for the AI roundup."
@@ -250,18 +329,47 @@ export const roundupsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
+      const requestId = randomUUID();
+      const startedAt = Date.now();
+      logRoundup("info", requestId, "started", {
+        dayKey: input.dayKey,
+        end: input.end.toISOString(),
+        label: input.label,
+        model,
+        start: input.start.toISOString(),
+        user: fingerprint(ctx.userId)
+      });
+
+      try {
       const apiKey = process.env.VERTEX_API_KEY;
 
       if (!apiKey) {
+        logRoundup("error", requestId, "missing_vertex_api_key");
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Vertex AI is not configured." });
       }
+
+      logRoundup("info", requestId, "config_checked", {
+        hasVertexApiKey: true,
+        model
+      });
 
       const user = await ctx.prisma.user.findUnique({
         where: { clerkUserId: ctx.userId },
         select: { id: true }
       });
 
-      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!user) {
+        logRoundup("warn", requestId, "user_not_found", {
+          clerkUser: fingerprint(ctx.userId)
+        });
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      logRoundup("info", requestId, "user_loaded", {
+        user: fingerprint(user.id)
+      });
+
+      const entriesStartedAt = Date.now();
 
       const entries: RoundupFoodEntry[] = await ctx.prisma.foodEntry.findMany({
         where: {
@@ -281,7 +389,14 @@ export const roundupsRouter = router({
         }
       });
 
+      logRoundup("info", requestId, "entries_loaded", {
+        durationMs: Date.now() - entriesStartedAt,
+        entryCount: entries.length,
+        maxRoundupEntries
+      });
+
       if (entries.length === 0) {
+        logRoundup("warn", requestId, "no_entries");
         throw new TRPCError({ code: "BAD_REQUEST", message: "Add at least one food photo first." });
       }
 
@@ -296,7 +411,26 @@ export const roundupsRouter = router({
         })
         .join("\n");
 
-      const imageParts = await Promise.all(entries.map((entry: RoundupFoodEntry) => imagePartFromEntry(entry)));
+      logRoundup("info", requestId, "prompt_built", {
+        textSummaryChars: textSummary.length
+      });
+
+      const imagesStartedAt = Date.now();
+      const imageParts = await Promise.all(
+        entries.map((entry: RoundupFoodEntry, index: number) => imagePartFromEntry(entry, index, requestId))
+      );
+      logRoundup("info", requestId, "images_ready", {
+        durationMs: Date.now() - imagesStartedAt,
+        imageCount: imageParts.length
+      });
+
+      const vertexStartedAt = Date.now();
+      logRoundup("info", requestId, "vertex_request_started", {
+        imageCount: imageParts.length,
+        model,
+        promptPartCount: imageParts.length + 1
+      });
+
       const response = await fetch(
         `https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
         {
@@ -328,6 +462,13 @@ export const roundupsRouter = router({
       );
 
       const result = (await response.json()) as VertexResponse;
+      const finishReason = result.candidates?.[0]?.finishReason ?? null;
+
+      logRoundup(response.ok ? "info" : "error", requestId, "vertex_response_received", {
+        durationMs: Date.now() - vertexStartedAt,
+        finishReason,
+        status: response.status
+      });
 
       if (!response.ok) {
         throw new TRPCError({
@@ -338,11 +479,20 @@ export const roundupsRouter = router({
 
       const text = getRoundupText(result);
 
+      logRoundup("info", requestId, "vertex_text_parsed", {
+        finishReason,
+        textChars: text.length
+      });
+
       if (!text) {
+        logRoundup("error", requestId, "empty_vertex_text", {
+          finishReason
+        });
         throw new TRPCError({ code: "BAD_GATEWAY", message: "Vertex AI returned an empty roundup." });
       }
 
-      return ctx.prisma.dailyRoundup.upsert({
+      const saveStartedAt = Date.now();
+      const roundup = await ctx.prisma.dailyRoundup.upsert({
         where: {
           userId_dayStart: {
             userId: user.id,
@@ -360,5 +510,20 @@ export const roundupsRouter = router({
         },
         select: roundupSelect
       });
+
+      logRoundup("info", requestId, "completed", {
+        durationMs: Date.now() - startedAt,
+        saveDurationMs: Date.now() - saveStartedAt,
+        textChars: text.length
+      });
+
+      return roundup;
+      } catch (error) {
+        logRoundup("error", requestId, "failed", {
+          durationMs: Date.now() - startedAt,
+          ...errorDetails(error)
+        });
+        throw error;
+      }
     })
 });
