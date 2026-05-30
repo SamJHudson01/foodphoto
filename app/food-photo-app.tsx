@@ -20,7 +20,7 @@ type StoredRoundup = {
 };
 
 type RoundupSection = {
-  label: "Overview" | "Meals" | "Observations" | "Experiment" | "Identity";
+  label: "Overview" | "Meals" | "Rundown" | "Observations" | "Experiment" | "Identity";
   text: string;
 };
 
@@ -150,7 +150,7 @@ function groupByDay(entries: FoodEntry[]): DayGroup[] {
 }
 
 function parseRoundupText(text: string): RoundupSection[] {
-  const labels: RoundupSection["label"][] = ["Overview", "Meals", "Observations", "Experiment", "Identity"];
+  const labels: RoundupSection["label"][] = ["Overview", "Meals", "Rundown", "Observations", "Experiment", "Identity"];
   const sections: RoundupSection[] = [];
 
   for (let index = 0; index < labels.length; index += 1) {
