@@ -26,6 +26,11 @@ type FoodEntry = {
   photoUrl: string;
 };
 
+type DayGroup = {
+  dayTimestamp: number;
+  items: FoodEntry[];
+};
+
 type HostedEntry = {
   id: string;
   capturedAt: Date;
@@ -123,7 +128,7 @@ function dateChip(timestamp: number) {
   });
 }
 
-function groupByDay(entries: FoodEntry[]) {
+function groupByDay(entries: FoodEntry[]): DayGroup[] {
   const grouped = new Map<number, FoodEntry[]>();
 
   for (const entry of entries) {
@@ -133,7 +138,7 @@ function groupByDay(entries: FoodEntry[]) {
     grouped.set(key, items);
   }
 
-  return [...grouped.entries()].map(([dayTimestamp, items]) => ({
+  return [...grouped.entries()].map(([dayTimestamp, items]: [number, FoodEntry[]]) => ({
     dayTimestamp,
     items
   }));
@@ -297,7 +302,7 @@ export default function FoodPhotoApp() {
 
   const entries = useMemo(
     () =>
-      ((entriesQuery.data ?? []) as HostedEntry[]).map((entry) => ({
+      ((entriesQuery.data ?? []) as HostedEntry[]).map((entry: HostedEntry) => ({
         id: entry.id,
         timestamp: entry.capturedAt.getTime(),
         note: entry.note,
@@ -309,7 +314,7 @@ export default function FoodPhotoApp() {
   const roundups = useMemo(
     () =>
       new Map(
-        ((roundupsQuery.data ?? []) as HostedRoundup[]).map((roundup) => [
+        ((roundupsQuery.data ?? []) as HostedRoundup[]).map((roundup: HostedRoundup) => [
           roundup.dayStart.toISOString().slice(0, 10),
           {
             dayTimestamp: roundup.dayStart.getTime(),
@@ -321,7 +326,7 @@ export default function FoodPhotoApp() {
     [roundupsQuery.data]
   );
   const selected = useMemo(
-    () => (selectedId ? entries.find((entry) => entry.id === selectedId) ?? null : null),
+    () => (selectedId ? entries.find((entry: FoodEntry) => entry.id === selectedId) ?? null : null),
     [entries, selectedId]
   );
   const showSampleData = process.env.NODE_ENV !== "production";
@@ -337,7 +342,7 @@ export default function FoodPhotoApp() {
   async function refreshLocalMigrationCandidates() {
     try {
       const stored = await listStoredEntries();
-      setLocalEntries(stored.filter((entry) => !entry.migratedAt));
+      setLocalEntries(stored.filter((entry: StoredEntry) => !entry.migratedAt));
     } catch {
       setLocalEntries([]);
     }
@@ -529,7 +534,7 @@ export default function FoodPhotoApp() {
               ) : null}
             </section>
           ) : (
-            groups.map((group) => (
+            groups.map((group: DayGroup) => (
               <section className={styles.daySection} key={group.dayTimestamp}>
                 <div className={styles.dayHeader}>
                   <span className={styles.dayLabel}>{dayLabel(group.dayTimestamp)}</span>
@@ -546,7 +551,7 @@ export default function FoodPhotoApp() {
                   onGenerate={() => void generateRoundup(group.dayTimestamp)}
                 />
                 <div className={styles.grid}>
-                  {group.items.map((entry) => (
+                  {group.items.map((entry: FoodEntry) => (
                     <button
                       className={`${styles.tile} ${entry.id === justAdded ? styles.tileNew : ""}`}
                       key={entry.id}

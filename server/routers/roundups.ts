@@ -16,6 +16,12 @@ type OpenRouterResponse = {
   };
 };
 
+type RoundupFoodEntry = {
+  capturedAt: Date;
+  note: string;
+  publicUrl: string;
+};
+
 const roundupSelect = {
   id: true,
   dayStart: true,
@@ -30,7 +36,7 @@ function getRoundupText(content: unknown) {
 
   if (Array.isArray(content)) {
     return content
-      .map((part) => {
+        .map((part: unknown) => {
         if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
           return part.text;
         }
@@ -88,7 +94,7 @@ export const roundupsRouter = router({
 
       if (!user) throw new TRPCError({ code: "NOT_FOUND" });
 
-      const entries = await ctx.prisma.foodEntry.findMany({
+      const entries: RoundupFoodEntry[] = await ctx.prisma.foodEntry.findMany({
         where: {
           userId: user.id,
           capturedAt: {
@@ -110,7 +116,7 @@ export const roundupsRouter = router({
       }
 
       const textSummary = entries
-        .map((entry, index) => {
+        .map((entry: RoundupFoodEntry, index: number) => {
           const time = entry.capturedAt.toLocaleTimeString("en-GB", {
             hour: "numeric",
             minute: "2-digit",
@@ -151,7 +157,7 @@ export const roundupsRouter = router({
                     textSummary
                   ].join("\n")
                 },
-                ...entries.map((entry) => ({
+                ...entries.map((entry: RoundupFoodEntry) => ({
                   type: "image_url",
                   image_url: {
                     url: entry.publicUrl
