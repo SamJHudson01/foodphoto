@@ -325,7 +325,8 @@ export const roundupsRouter = router({
         dayKey: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         start: z.coerce.date(),
         end: z.coerce.date(),
-        label: z.string().max(80)
+        label: z.string().max(80),
+        timeZone: z.string().min(1).max(80).optional()
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -337,6 +338,7 @@ export const roundupsRouter = router({
         label: input.label,
         model,
         start: input.start.toISOString(),
+        timeZone: input.timeZone ?? "UTC",
         user: fingerprint(ctx.userId)
       });
 
@@ -405,7 +407,8 @@ export const roundupsRouter = router({
           const time = entry.capturedAt.toLocaleTimeString("en-GB", {
             hour: "numeric",
             minute: "2-digit",
-            hour12: true
+            hour12: true,
+            timeZone: input.timeZone ?? "UTC"
           });
           return `${index + 1}. ${time}${entry.note ? ` - note: ${entry.note}` : ""}`;
         })

@@ -451,7 +451,8 @@ export default function FoodPhotoApp() {
         dayKey: dayKey(dayTimestamp),
         start: range.start,
         end: range.end,
-        label: `${dayLabel(dayTimestamp)} ${dateChip(dayTimestamp)}`
+        label: `${dayLabel(dayTimestamp)} ${dateChip(dayTimestamp)}`,
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
     } catch (error) {
       setRoundupError(error instanceof Error ? error.message : "The roundup could not be generated.");
