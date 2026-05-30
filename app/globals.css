@@ -1,19 +1,64 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap");
+
+:root {
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-mono: "JetBrains Mono", Menlo, Consolas, monospace;
+
+  --bg-base: #0d0f0e;
+  --bg-surface: #141716;
+  --bg-elevated: #1a1d1c;
+  --bg-hover: #1e2221;
+  --bg-input: #111413;
+
+  --text-primary: #f0ede8;
+  --text-secondary: #b2b1ae;
+  --text-tertiary: #959491;
+  --text-disabled: #5c5b58;
+
+  --accent-amber: #e5a84b;
+  --accent-amber-dark: #cfa044;
+  --accent-red: #e5534b;
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 300ms;
+  --ease-gk: cubic-bezier(0.165, 0.84, 0.44, 1);
+
+  --shadow-glow-amber: 0 4px 12px rgba(229, 168, 75, 0.3);
+  --ring-focus-amber: 0 0 0 3px rgba(229, 168, 75, 0.15);
+}
+
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html {
   min-height: 100%;
+  background: #08090a;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
   min-height: 100%;
   margin: 0;
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
+  color: var(--text-primary);
+  background: #08090a;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+textarea {
+  font-family: inherit;
 }
 
 button {

@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "Food Photos",
   description: "A personal food photo tracker.",
   applicationName: "Food Photos",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg"
+  },
   appleWebApp: {
     capable: true,
     title: "Food Photos",
