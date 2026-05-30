@@ -19,6 +19,11 @@ type StoredRoundup = {
   text: string;
 };
 
+type RoundupSection = {
+  label: "Overview" | "Observations" | "Experiment" | "Identity";
+  text: string;
+};
+
 type FoodEntry = {
   id: string;
   timestamp: number;
@@ -142,6 +147,29 @@ function groupByDay(entries: FoodEntry[]): DayGroup[] {
     dayTimestamp,
     items
   }));
+}
+
+function parseRoundupText(text: string): RoundupSection[] {
+  const labels: RoundupSection["label"][] = ["Overview", "Observations", "Experiment", "Identity"];
+  const sections: RoundupSection[] = [];
+
+  for (let index = 0; index < labels.length; index += 1) {
+    const label = labels[index];
+    const nextLabel = labels[index + 1];
+    const start = text.indexOf(`${label}:`);
+
+    if (start === -1) continue;
+
+    const contentStart = start + label.length + 1;
+    const end = nextLabel ? text.indexOf(`${nextLabel}:`, contentStart) : text.length;
+    const sectionText = text.slice(contentStart, end === -1 ? text.length : end).trim();
+
+    if (sectionText) {
+      sections.push({ label, text: sectionText });
+    }
+  }
+
+  return sections;
 }
 
 function dayKey(dayTimestamp: number) {
@@ -602,6 +630,8 @@ function RoundupCard({
   roundup: StoredRoundup | undefined;
   onGenerate: () => void;
 }) {
+  const sections = roundup ? parseRoundupText(roundup.text) : [];
+
   return (
     <div className={styles.roundupCard}>
       <div className={styles.roundupHeader}>
@@ -616,13 +646,24 @@ function RoundupCard({
 
       {roundup ? (
         <>
-          <p className={styles.roundupText}>{roundup.text}</p>
+          {sections.length > 0 ? (
+            <div className={styles.roundupSections}>
+              {sections.map((section: RoundupSection) => (
+                <section className={styles.roundupSection} key={section.label}>
+                  <h3>{section.label}</h3>
+                  <p>{section.text}</p>
+                </section>
+              ))}
+            </div>
+          ) : (
+            <p className={styles.roundupText}>{roundup.text}</p>
+          )}
           <p className={styles.roundupMeta}>Saved for {dateLabel}</p>
         </>
       ) : (
         <p className={styles.roundupEmpty}>
-          Generate a short reflection from this day&apos;s photos and notes. Photos are sent to OpenRouter only when
-          you tap the button.
+          Generate one performance nutrition micro-adjustment from this day&apos;s photos and notes. Photos are sent to
+          OpenRouter only when you tap the button.
         </p>
       )}
 

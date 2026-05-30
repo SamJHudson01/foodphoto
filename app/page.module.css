@@ -351,6 +351,34 @@
   white-space: pre-wrap;
 }
 
+.roundupSections {
+  display: grid;
+  gap: 10px;
+  margin-top: 13px;
+}
+
+.roundupSection {
+  display: grid;
+  gap: 4px;
+}
+
+.roundupSection h3 {
+  margin: 0;
+  color: var(--accent-amber);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.roundupSection p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.48;
+}
+
 .roundupEmpty {
   margin: 12px 0 0;
   color: var(--text-tertiary);
