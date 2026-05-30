@@ -411,6 +411,54 @@
   color: var(--text-primary);
   font-size: 13px;
   line-height: 1.48;
+  white-space: pre-wrap;
+}
+
+.roundupOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 46;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 74px) 16px calc(env(safe-area-inset-bottom) + 20px);
+  background: rgba(8, 9, 8, 0.96);
+  animation: fade var(--duration-base) ease-out;
+}
+
+.roundupSheet {
+  min-height: 0;
+  width: 100%;
+  max-width: 640px;
+  margin: auto;
+  overflow: auto;
+  padding: 22px 18px 24px;
+  border: 1px solid rgba(229, 168, 75, 0.2);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(229, 168, 75, 0.08), rgba(229, 168, 75, 0)),
+    var(--bg-surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.roundupSheetHeader {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 18px;
+}
+
+.roundupSheetHeader h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 25px;
+  line-height: 1.1;
+}
+
+.roundupSheetHeader p:last-child {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 11px;
 }
 
 .roundupEmpty {

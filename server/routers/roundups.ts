@@ -2,14 +2,28 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, router } from "../trpc";
 
-const maxRoundupEntries = 8;
-const model = process.env.OPENROUTER_MODEL ?? "google/gemini-3.5-flash";
+const maxRoundupEntries = 24;
+const model = process.env.VERTEX_MODEL ?? "gemini-3.1-pro-preview";
 
-type OpenRouterResponse = {
-  choices?: Array<{
-    message?: {
-      content?: unknown;
+type VertexPart =
+  | {
+      text: string;
+    }
+  | {
+      inlineData: {
+        mimeType: string;
+        data: string;
+      };
     };
+
+type VertexResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+    finishReason?: string;
   }>;
   error?: {
     message?: string;
@@ -18,6 +32,7 @@ type OpenRouterResponse = {
 
 type RoundupFoodEntry = {
   capturedAt: Date;
+  contentType: string;
   note: string;
   publicUrl: string;
 };
@@ -31,23 +46,13 @@ const roundupSelect = {
   updatedAt: true
 } as const;
 
-function getRoundupText(content: unknown) {
-  if (typeof content === "string") return content.trim();
-
-  if (Array.isArray(content)) {
-    return content
-      .map((part: unknown) => {
-        if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
-          return part.text;
-        }
-
-        return "";
-      })
-      .join("\n")
-      .trim();
-  }
-
-  return "";
+function getRoundupText(result: VertexResponse) {
+  return (
+    result.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text ?? "")
+      .join("")
+      .trim() ?? ""
+  );
 }
 
 function dayKeyToDate(dayKey: string) {
@@ -179,6 +184,33 @@ ${textSummary}
 </formatting_rules>`;
 }
 
+async function imagePartFromEntry(entry: RoundupFoodEntry): Promise<VertexPart> {
+  const response = await fetch(entry.publicUrl);
+
+  if (!response.ok) {
+    throw new TRPCError({
+      code: "BAD_GATEWAY",
+      message: "Stored food photo could not be fetched for the AI roundup."
+    });
+  }
+
+  const bytes = Buffer.from(await response.arrayBuffer());
+
+  if (bytes.byteLength > 7_000_000) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "One food photo is too large for the AI roundup."
+    });
+  }
+
+  return {
+    inlineData: {
+      mimeType: entry.contentType,
+      data: bytes.toString("base64")
+    }
+  };
+}
+
 export const roundupsRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const user = await ctx.prisma.user.findUnique({
@@ -206,10 +238,10 @@ export const roundupsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const apiKey = process.env.OPENROUTER_API_KEY;
+      const apiKey = process.env.VERTEX_API_KEY;
 
       if (!apiKey) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "OpenRouter is not configured." });
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Vertex AI is not configured." });
       }
 
       const user = await ctx.prisma.user.findUnique({
@@ -231,6 +263,7 @@ export const roundupsRouter = router({
         take: maxRoundupEntries,
         select: {
           capturedAt: true,
+          contentType: true,
           note: true,
           publicUrl: true
         }
@@ -251,51 +284,50 @@ export const roundupsRouter = router({
         })
         .join("\n");
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://foodphoto-alpha.vercel.app",
-          "X-Title": "FoodPhoto"
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: buildCoachPrompt(input.label, textSummary)
-                },
-                ...entries.map((entry: RoundupFoodEntry) => ({
-                  type: "image_url",
-                  image_url: {
-                    url: entry.publicUrl
-                  }
-                }))
-              ]
+      const imageParts = await Promise.all(entries.map((entry: RoundupFoodEntry) => imagePartFromEntry(entry)));
+      const response = await fetch(
+        `https://aiplatform.googleapis.com/v1beta1/publishers/google/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: buildCoachPrompt(input.label, textSummary)
+                  },
+                  ...imageParts
+                ]
+              }
+            ],
+            generationConfig: {
+              temperature: 0.55,
+              maxOutputTokens: 4096,
+              thinkingConfig: {
+                thinkingLevel: "LOW"
+              }
             }
-          ],
-          temperature: 0.55,
-          max_tokens: 650
-        })
-      });
+          })
+        }
+      );
 
-      const result = (await response.json()) as OpenRouterResponse;
+      const result = (await response.json()) as VertexResponse;
 
       if (!response.ok) {
         throw new TRPCError({
           code: "BAD_GATEWAY",
-          message: result.error?.message ?? "OpenRouter request failed."
+          message: result.error?.message ?? "Vertex AI request failed."
         });
       }
 
-      const text = getRoundupText(result.choices?.[0]?.message?.content);
+      const text = getRoundupText(result);
 
       if (!text) {
-        throw new TRPCError({ code: "BAD_GATEWAY", message: "OpenRouter returned an empty roundup." });
+        throw new TRPCError({ code: "BAD_GATEWAY", message: "Vertex AI returned an empty roundup." });
       }
 
       return ctx.prisma.dailyRoundup.upsert({

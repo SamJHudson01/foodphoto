@@ -176,9 +176,9 @@ function roundupPreview(text: string, sections: RoundupSection[]) {
   const overview = sections.find((section: RoundupSection) => section.label === "Overview")?.text ?? text;
   const clean = overview.replace(/\s+/g, " ").trim();
 
-  if (clean.length <= 150) return clean;
+  if (clean.length <= 120) return clean;
 
-  return `${clean.slice(0, 147).trim()}...`;
+  return `${clean.slice(0, 117).trim()}...`;
 }
 
 function dayKey(dayTimestamp: number) {
@@ -639,7 +639,7 @@ function RoundupCard({
   roundup: StoredRoundup | undefined;
   onGenerate: () => void;
 }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const sections = roundup ? parseRoundupText(roundup.text) : [];
   const preview = roundup ? roundupPreview(roundup.text, sections) : "";
 
@@ -657,40 +657,68 @@ function RoundupCard({
 
       {roundup ? (
         <>
-          <button
-            className={styles.roundupPreview}
-            type="button"
-            aria-expanded={isExpanded}
-            onClick={() => setIsExpanded((current) => !current)}
-          >
+          <button className={styles.roundupPreview} type="button" onClick={() => setIsOpen(true)}>
             <span>{preview}</span>
-            <strong>{isExpanded ? "Collapse" : "Expand"}</strong>
+            <strong>Open</strong>
           </button>
 
-          {isExpanded ? (
-            sections.length > 0 ? (
-              <div className={styles.roundupSections}>
-                {sections.map((section: RoundupSection) => (
-                  <section className={styles.roundupSection} key={section.label}>
-                    <h3>{section.label}</h3>
-                    <p>{section.text}</p>
-                  </section>
-                ))}
-              </div>
-            ) : (
-              <p className={styles.roundupText}>{roundup.text}</p>
-            )
-          ) : null}
           <p className={styles.roundupMeta}>Saved for {dateLabel}</p>
+          {isOpen ? (
+            <RoundupOverlay
+              dateLabel={dateLabel}
+              sections={sections}
+              text={roundup.text}
+              onClose={() => setIsOpen(false)}
+            />
+          ) : null}
         </>
       ) : (
         <p className={styles.roundupEmpty}>
           Generate one performance nutrition micro-adjustment from this day&apos;s photos and notes. Photos are sent to
-          OpenRouter only when you tap the button.
+          Vertex AI only when you tap the button.
         </p>
       )}
 
       {error ? <p className={styles.roundupError}>{error}</p> : null}
+    </div>
+  );
+}
+
+function RoundupOverlay({
+  dateLabel,
+  sections,
+  text,
+  onClose
+}: {
+  dateLabel: string;
+  sections: RoundupSection[];
+  text: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className={styles.roundupOverlay} onClick={onClose}>
+      <button className={styles.lightboxClose} type="button" aria-label="Close" onClick={onClose}>
+        <CloseIcon />
+      </button>
+      <article className={styles.roundupSheet} onClick={(event) => event.stopPropagation()}>
+        <div className={styles.roundupSheetHeader}>
+          <p className={styles.roundupEyebrow}>AI coach</p>
+          <h2>Daily roundup</h2>
+          <p>Saved for {dateLabel}</p>
+        </div>
+        {sections.length > 0 ? (
+          <div className={styles.roundupSections}>
+            {sections.map((section: RoundupSection) => (
+              <section className={styles.roundupSection} key={section.label}>
+                <h3>{section.label}</h3>
+                <p>{section.text}</p>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <p className={styles.roundupText}>{text}</p>
+        )}
+      </article>
     </div>
   );
 }
