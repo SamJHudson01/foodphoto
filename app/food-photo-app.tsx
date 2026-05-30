@@ -305,7 +305,7 @@ export default function FoodPhotoApp() {
               </section>
             ))
           )}
-          <div className={styles.scrollPad} />
+          {groups.length > 0 ? <div className={styles.scrollPad} /> : null}
         </div>
 
         <button className={styles.fab} type="button" aria-label="Take a photo" onClick={openCamera}>
