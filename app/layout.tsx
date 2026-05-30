@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
+import { TRPCProvider } from "./trpc-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -33,7 +35,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ClerkProvider>
+          <TRPCProvider>{children}</TRPCProvider>
+        </ClerkProvider>
+      </body>
     </html>
   );
 }

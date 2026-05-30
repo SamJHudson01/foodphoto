@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clerkUserId String         @unique
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
+  entries     FoodEntry[]
+  roundups    DailyRoundup[]
+}
+
+model FoodEntry {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @db.Uuid
+  capturedAt   DateTime @db.Timestamptz(6)
+  note         String   @default("")
+  r2Key        String
+  publicUrl    String
+  contentType  String
+  byteSize     Int
+  width        Int?
+  height       Int?
+  migrationKey String?
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, r2Key])
+  @@unique([userId, migrationKey])
+  @@index([userId, capturedAt])
+}
+
+model DailyRoundup {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid
+  dayStart    DateTime @db.Date
+  text        String
+  generatedAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayStart])
+  @@index([userId, dayStart])
+}

@@ -3,12 +3,14 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
+import { trpc } from "./trpc";
 
 type StoredEntry = {
   id: string;
   timestamp: number;
   note: string;
   photo: Blob;
+  migratedAt?: number;
 };
 
 type StoredRoundup = {
@@ -22,7 +24,6 @@ type FoodEntry = {
   timestamp: number;
   note: string;
   photoUrl: string;
-  photo: Blob;
 };
 
 type DraftEntry = {
@@ -48,14 +49,14 @@ interface FoodPhotosDb extends DBSchema {
 let dbPromise: Promise<IDBPDatabase<FoodPhotosDb>> | null = null;
 
 function getDb() {
-  dbPromise ??= openDB<FoodPhotosDb>("foodphotos-local", 2, {
-    upgrade(db) {
+  dbPromise ??= openDB<FoodPhotosDb>("foodphotos-local", 3, {
+    upgrade(db, oldVersion) {
       if (!db.objectStoreNames.contains("entries")) {
         const store = db.createObjectStore("entries", { keyPath: "id" });
         store.createIndex("by-timestamp", "timestamp");
       }
 
-      if (!db.objectStoreNames.contains("roundups")) {
+      if (oldVersion < 2 && !db.objectStoreNames.contains("roundups")) {
         db.createObjectStore("roundups", { keyPath: "dayTimestamp" });
       }
     }
@@ -70,40 +71,12 @@ async function listStoredEntries() {
   return entries.sort((a, b) => b.timestamp - a.timestamp);
 }
 
-async function addStoredEntry(entry: StoredEntry) {
-  const db = await getDb();
-  await db.put("entries", entry);
-}
-
-async function updateStoredNote(id: string, note: string) {
+async function markStoredEntryMigrated(id: string) {
   const db = await getDb();
   const entry = await db.get("entries", id);
   if (!entry) return;
 
-  await db.put("entries", { ...entry, note });
-}
-
-async function deleteStoredEntry(id: string) {
-  const db = await getDb();
-  await db.delete("entries", id);
-}
-
-async function listStoredRoundups() {
-  const db = await getDb();
-  return db.getAll("roundups");
-}
-
-async function saveStoredRoundup(roundup: StoredRoundup) {
-  const db = await getDb();
-  await db.put("roundups", roundup);
-}
-
-function createId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-
-  return `entry-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  await db.put("entries", { ...entry, migratedAt: Date.now() });
 }
 
 function startOfDay(timestamp: number) {
@@ -153,6 +126,22 @@ function groupByDay(entries: FoodEntry[]) {
   }));
 }
 
+function dayKey(dayTimestamp: number) {
+  const date = new Date(dayTimestamp);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function dayRange(dayTimestamp: number) {
+  const start = new Date(dayTimestamp);
+  const end = new Date(dayTimestamp);
+  end.setDate(end.getDate() + 1);
+
+  return { start, end };
+}
+
 function blobToDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
@@ -166,6 +155,19 @@ function blobToDataUrl(blob: Blob) {
     reader.addEventListener("error", () => reject(reader.error ?? new Error("Could not read photo")));
     reader.readAsDataURL(blob);
   });
+}
+
+async function getImageDimensions(blob: Blob) {
+  if (!("createImageBitmap" in window)) return {};
+
+  const bitmap = await createImageBitmap(blob);
+  const dimensions = {
+    width: bitmap.width,
+    height: bitmap.height
+  };
+  bitmap.close();
+
+  return dimensions;
 }
 
 function createSamplePhotoBlob(label: string, hue: number) {
@@ -239,70 +241,97 @@ function CloseIcon() {
 }
 
 export default function FoodPhotoApp() {
-  const [entries, setEntries] = useState<FoodEntry[]>([]);
+  const utils = trpc.useUtils();
+  const entriesQuery = trpc.entries.list.useQuery(undefined, {
+    retry: false
+  });
+  const roundupsQuery = trpc.roundups.list.useQuery(undefined, {
+    retry: false
+  });
+  const createEntry = trpc.entries.create.useMutation({
+    onSuccess: async () => {
+      await utils.entries.list.invalidate();
+    }
+  });
+  const updateNote = trpc.entries.updateNote.useMutation({
+    onSuccess: async () => {
+      await utils.entries.list.invalidate();
+    }
+  });
+  const deleteEntryMutation = trpc.entries.delete.useMutation({
+    onSuccess: async () => {
+      await utils.entries.list.invalidate();
+    }
+  });
+  const generateRoundupMutation = trpc.roundups.generate.useMutation({
+    onSuccess: async () => {
+      await utils.roundups.list.invalidate();
+    }
+  });
+
   const [screen, setScreen] = useState<"gallery" | "camera" | "confirm">("gallery");
   const [draft, setDraft] = useState<DraftEntry | null>(null);
-  const [selected, setSelected] = useState<FoodEntry | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
-  const [roundups, setRoundups] = useState<Map<number, StoredRoundup>>(() => new Map());
   const [roundupLoadingDay, setRoundupLoadingDay] = useState<number | null>(null);
   const [roundupError, setRoundupError] = useState<string | null>(null);
-  const entryUrls = useRef<string[]>([]);
+  const [localEntries, setLocalEntries] = useState<StoredEntry[]>([]);
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationError, setMigrationError] = useState<string | null>(null);
   const draftUrl = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const entries = useMemo(
+    () =>
+      (entriesQuery.data ?? []).map((entry) => ({
+        id: entry.id,
+        timestamp: entry.capturedAt.getTime(),
+        note: entry.note,
+        photoUrl: entry.publicUrl
+      })),
+    [entriesQuery.data]
+  );
   const groups = useMemo(() => groupByDay(entries), [entries]);
+  const roundups = useMemo(
+    () =>
+      new Map(
+        (roundupsQuery.data ?? []).map((roundup) => [
+          roundup.dayStart.toISOString().slice(0, 10),
+          {
+            dayTimestamp: roundup.dayStart.getTime(),
+            generatedAt: roundup.generatedAt.getTime(),
+            text: roundup.text
+          }
+        ])
+      ),
+    [roundupsQuery.data]
+  );
+  const selected = useMemo(
+    () => (selectedId ? entries.find((entry) => entry.id === selectedId) ?? null : null),
+    [entries, selectedId]
+  );
   const showSampleData = process.env.NODE_ENV !== "production";
 
   useEffect(() => {
-    void refreshEntries();
-    void refreshRoundups();
+    void refreshLocalMigrationCandidates();
 
     return () => {
-      revokeEntryUrls();
       if (draftUrl.current) URL.revokeObjectURL(draftUrl.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function revokeEntryUrls() {
-    for (const url of entryUrls.current) URL.revokeObjectURL(url);
-    entryUrls.current = [];
-  }
-
-  async function refreshEntries() {
+  async function refreshLocalMigrationCandidates() {
     try {
       const stored = await listStoredEntries();
-      const urls: string[] = [];
-      const nextEntries = stored.map((entry) => {
-        const photoUrl = URL.createObjectURL(entry.photo);
-        urls.push(photoUrl);
-
-        return {
-          id: entry.id,
-          timestamp: entry.timestamp,
-          note: entry.note,
-          photoUrl,
-          photo: entry.photo
-        };
-      });
-
-      revokeEntryUrls();
-      entryUrls.current = urls;
-      setEntries(nextEntries);
-      setStorageError(null);
+      setLocalEntries(stored.filter((entry) => !entry.migratedAt));
     } catch {
-      setStorageError("Local photo storage is not available in this browser.");
+      setLocalEntries([]);
     }
   }
 
-  async function refreshRoundups() {
-    const stored = await listStoredRoundups();
-    setRoundups(new Map(stored.map((roundup) => [roundup.dayTimestamp, roundup])));
-  }
-
   function openCamera() {
+    setStorageError(null);
     setScreen("camera");
   }
 
@@ -322,14 +351,14 @@ export default function FoodPhotoApp() {
   async function saveDraft(note: string) {
     if (!draft) return;
 
-    const id = createId();
-
     try {
-      await addStoredEntry({
-        id,
-        timestamp: draft.timestamp,
+      const photoDataUrl = await blobToDataUrl(draft.photo);
+      const dimensions = await getImageDimensions(draft.photo);
+      const created = await createEntry.mutateAsync({
+        capturedAt: new Date(draft.timestamp),
         note: note.trim(),
-        photo: draft.photo
+        photoDataUrl,
+        ...dimensions
       });
 
       if (draftUrl.current) {
@@ -339,69 +368,36 @@ export default function FoodPhotoApp() {
 
       setDraft(null);
       setScreen("gallery");
-      setJustAdded(id);
-      await refreshEntries();
+      setJustAdded(created.id);
       scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
       window.setTimeout(() => setJustAdded(null), 1200);
     } catch {
-      setStorageError("That photo could not be saved locally.");
+      setStorageError("That photo could not be saved.");
     }
   }
 
   async function saveNote(id: string, note: string) {
-    const cleanNote = note.trim();
-    await updateStoredNote(id, cleanNote);
-    setEntries((current) =>
-      current.map((entry) => (entry.id === id ? { ...entry, note: cleanNote } : entry))
-    );
-    setSelected((current) => (current && current.id === id ? { ...current, note: cleanNote } : current));
+    await updateNote.mutateAsync({ id, note: note.trim() });
   }
 
   async function deleteEntry(id: string) {
-    await deleteStoredEntry(id);
-    setSelected(null);
-    await refreshEntries();
+    await deleteEntryMutation.mutateAsync({ id });
+    setSelectedId(null);
   }
 
-  async function generateRoundup(dayTimestamp: number, items: FoodEntry[]) {
+  async function generateRoundup(dayTimestamp: number) {
+    const range = dayRange(dayTimestamp);
+
     setRoundupLoadingDay(dayTimestamp);
     setRoundupError(null);
 
     try {
-      const photos = await Promise.all(
-        items.slice(0, 8).map(async (entry) => ({
-          timestamp: entry.timestamp,
-          note: entry.note,
-          photoDataUrl: await blobToDataUrl(entry.photo)
-        }))
-      );
-
-      const response = await fetch("/api/roundup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          dayLabel: dayLabel(dayTimestamp),
-          date: dateChip(dayTimestamp),
-          entries: photos
-        })
+      await generateRoundupMutation.mutateAsync({
+        dayKey: dayKey(dayTimestamp),
+        start: range.start,
+        end: range.end,
+        label: `${dayLabel(dayTimestamp)} ${dateChip(dayTimestamp)}`
       });
-
-      const body = (await response.json()) as { roundup?: string; error?: string };
-
-      if (!response.ok || !body.roundup) {
-        throw new Error(body.error ?? "Roundup failed");
-      }
-
-      const roundup = {
-        dayTimestamp,
-        generatedAt: Date.now(),
-        text: body.roundup
-      };
-
-      await saveStoredRoundup(roundup);
-      setRoundups((current) => new Map(current).set(dayTimestamp, roundup));
     } catch (error) {
       setRoundupError(error instanceof Error ? error.message : "The roundup could not be generated.");
     } finally {
@@ -417,23 +413,55 @@ export default function FoodPhotoApp() {
       { label: "Avo toast", note: "Avo toast + poached egg", hour: 9, minute: 10, dayOffset: 1, hue: 142 }
     ];
 
-    await Promise.all(
-      samples.map(async (sample) => {
+    const created = await Promise.all(
+      samples.map(async (sample, index) => {
         const timestamp = new Date();
         timestamp.setDate(timestamp.getDate() - sample.dayOffset);
         timestamp.setHours(sample.hour, sample.minute, 0, 0);
+        const photo = await createSamplePhotoBlob(sample.label, sample.hue);
+        const photoDataUrl = await blobToDataUrl(photo);
+        const dimensions = await getImageDimensions(photo);
 
-        await addStoredEntry({
-          id: createId(),
-          timestamp: timestamp.getTime(),
+        return createEntry.mutateAsync({
+          capturedAt: timestamp,
           note: sample.note,
-          photo: await createSamplePhotoBlob(sample.label, sample.hue)
+          photoDataUrl,
+          migrationKey: `sample-${sample.label}-${index}`,
+          ...dimensions
         });
       })
     );
 
-    await refreshEntries();
+    setJustAdded(created[0]?.id ?? null);
     scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    window.setTimeout(() => setJustAdded(null), 1200);
+  }
+
+  async function migrateLocalPhotos() {
+    setIsMigrating(true);
+    setMigrationError(null);
+
+    try {
+      for (const entry of localEntries) {
+        const photoDataUrl = await blobToDataUrl(entry.photo);
+        const dimensions = await getImageDimensions(entry.photo);
+
+        await createEntry.mutateAsync({
+          capturedAt: new Date(entry.timestamp),
+          note: entry.note,
+          photoDataUrl,
+          migrationKey: entry.id,
+          ...dimensions
+        });
+        await markStoredEntryMigrated(entry.id);
+      }
+
+      await refreshLocalMigrationCandidates();
+    } catch (error) {
+      setMigrationError(error instanceof Error ? error.message : "Local photos could not be migrated.");
+    } finally {
+      setIsMigrating(false);
+    }
   }
 
   return (
@@ -453,13 +481,34 @@ export default function FoodPhotoApp() {
           className={`${styles.galleryScroll} ${groups.length === 0 ? styles.galleryScrollEmpty : ""}`}
           ref={scrollRef}
         >
-          {storageError ? <p className={styles.inlineError}>{storageError}</p> : null}
+          {storageError || entriesQuery.error ? (
+            <p className={styles.inlineError}>{storageError ?? entriesQuery.error?.message}</p>
+          ) : null}
 
-          {groups.length === 0 ? (
+          {localEntries.length > 0 ? (
+            <section className={styles.migrationBanner}>
+              <div>
+                <h2>{localEntries.length} local photo{localEntries.length === 1 ? "" : "s"} found</h2>
+                <p>Move them into your hosted FoodPhoto account. The local copies stay untouched after upload.</p>
+                {migrationError ? <span>{migrationError}</span> : null}
+              </div>
+              <button type="button" onClick={() => void migrateLocalPhotos()} disabled={isMigrating}>
+                {isMigrating ? "Migrating..." : "Migrate"}
+              </button>
+            </section>
+          ) : null}
+
+          {entriesQuery.isLoading ? (
+            <section className={styles.emptyState}>
+              <CameraIcon />
+              <h1>Loading photos</h1>
+              <p>Getting your gallery ready.</p>
+            </section>
+          ) : groups.length === 0 ? (
             <section className={styles.emptyState}>
               <CameraIcon />
               <h1>No food photos yet</h1>
-              <p>Take a photo when you eat. It stays on this device.</p>
+              <p>Take a photo when you eat. It saves to your FoodPhoto account.</p>
               {showSampleData ? (
                 <button className={styles.sampleButton} type="button" onClick={() => void addSamplePhotos()}>
                   Add sample photos
@@ -480,8 +529,8 @@ export default function FoodPhotoApp() {
                   dateLabel={`${dayLabel(group.dayTimestamp)} ${dateChip(group.dayTimestamp)}`}
                   isLoading={roundupLoadingDay === group.dayTimestamp}
                   error={roundupError}
-                  roundup={roundups.get(group.dayTimestamp)}
-                  onGenerate={() => void generateRoundup(group.dayTimestamp, group.items)}
+                  roundup={roundups.get(dayKey(group.dayTimestamp))}
+                  onGenerate={() => void generateRoundup(group.dayTimestamp)}
                 />
                 <div className={styles.grid}>
                   {group.items.map((entry) => (
@@ -489,7 +538,7 @@ export default function FoodPhotoApp() {
                       className={`${styles.tile} ${entry.id === justAdded ? styles.tileNew : ""}`}
                       key={entry.id}
                       type="button"
-                      onClick={() => setSelected(entry)}
+                      onClick={() => setSelectedId(entry.id)}
                     >
                       <img src={entry.photoUrl} alt={entry.note || "Food photo"} />
                       <span className={styles.tileTime}>{formatTime(entry.timestamp)}</span>
@@ -515,7 +564,7 @@ export default function FoodPhotoApp() {
         ) : null}
 
         {selected ? (
-          <Lightbox entry={selected} onClose={() => setSelected(null)} onDelete={deleteEntry} onSaveNote={saveNote} />
+          <Lightbox entry={selected} onClose={() => setSelectedId(null)} onDelete={deleteEntry} onSaveNote={saveNote} />
         ) : null}
       </section>
     </main>

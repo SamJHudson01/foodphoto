@@ -9,4 +9,5 @@ dist
 .playwright-mcp
 foodphoto-*.png
 *.log
+tsconfig.tsbuildinfo
 .DS_Store

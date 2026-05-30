@@ -9,6 +9,46 @@
     #08090a;
 }
 
+.authShell {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: var(--text-primary);
+  background:
+    radial-gradient(ellipse at 50% 18%, #15171a 0%, rgba(8, 9, 10, 0) 58%),
+    #08090a;
+}
+
+.authPanel {
+  width: min(100%, 360px);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.authPanel h1 {
+  margin: 18px 0 0;
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.1;
+}
+
+.authPanel p {
+  margin: 10px 0 24px;
+  color: var(--text-tertiary);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.accountControl {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 10px);
+  right: 12px;
+  z-index: 80;
+}
+
 .appSurface {
   position: relative;
   width: min(100%, 720px);
@@ -47,6 +87,61 @@
   border-radius: 8px;
   color: var(--accent-red);
   background: rgba(229, 83, 75, 0.1);
+}
+
+.migrationBanner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px;
+  padding: 14px;
+  border: 1px solid rgba(229, 168, 75, 0.28);
+  border-radius: 8px;
+  background: rgba(229, 168, 75, 0.1);
+}
+
+.migrationBanner div {
+  min-width: 0;
+  flex: 1;
+}
+
+.migrationBanner h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.migrationBanner p {
+  margin: 4px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.migrationBanner span {
+  display: block;
+  margin-top: 6px;
+  color: var(--accent-red);
+  font-size: 12px;
+}
+
+.migrationBanner button {
+  min-height: 38px;
+  flex-shrink: 0;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #1a1208;
+  background: var(--accent-amber);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.migrationBanner button:disabled {
+  opacity: 0.62;
 }
 
 .emptyState {
