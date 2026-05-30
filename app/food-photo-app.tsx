@@ -11,11 +11,18 @@ type StoredEntry = {
   photo: Blob;
 };
 
+type StoredRoundup = {
+  dayTimestamp: number;
+  generatedAt: number;
+  text: string;
+};
+
 type FoodEntry = {
   id: string;
   timestamp: number;
   note: string;
   photoUrl: string;
+  photo: Blob;
 };
 
 type DraftEntry = {
@@ -32,15 +39,25 @@ interface FoodPhotosDb extends DBSchema {
       "by-timestamp": number;
     };
   };
+  roundups: {
+    key: number;
+    value: StoredRoundup;
+  };
 }
 
 let dbPromise: Promise<IDBPDatabase<FoodPhotosDb>> | null = null;
 
 function getDb() {
-  dbPromise ??= openDB<FoodPhotosDb>("foodphotos-local", 1, {
+  dbPromise ??= openDB<FoodPhotosDb>("foodphotos-local", 2, {
     upgrade(db) {
-      const store = db.createObjectStore("entries", { keyPath: "id" });
-      store.createIndex("by-timestamp", "timestamp");
+      if (!db.objectStoreNames.contains("entries")) {
+        const store = db.createObjectStore("entries", { keyPath: "id" });
+        store.createIndex("by-timestamp", "timestamp");
+      }
+
+      if (!db.objectStoreNames.contains("roundups")) {
+        db.createObjectStore("roundups", { keyPath: "dayTimestamp" });
+      }
     }
   });
 
@@ -69,6 +86,16 @@ async function updateStoredNote(id: string, note: string) {
 async function deleteStoredEntry(id: string) {
   const db = await getDb();
   await db.delete("entries", id);
+}
+
+async function listStoredRoundups() {
+  const db = await getDb();
+  return db.getAll("roundups");
+}
+
+async function saveStoredRoundup(roundup: StoredRoundup) {
+  const db = await getDb();
+  await db.put("roundups", roundup);
 }
 
 function createId() {
@@ -126,6 +153,21 @@ function groupByDay(entries: FoodEntry[]) {
   }));
 }
 
+function blobToDataUrl(blob: Blob) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Could not read photo"));
+      }
+    });
+    reader.addEventListener("error", () => reject(reader.error ?? new Error("Could not read photo")));
+    reader.readAsDataURL(blob);
+  });
+}
+
 function CameraIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -150,6 +192,9 @@ export default function FoodPhotoApp() {
   const [selected, setSelected] = useState<FoodEntry | null>(null);
   const [justAdded, setJustAdded] = useState<string | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
+  const [roundups, setRoundups] = useState<Map<number, StoredRoundup>>(() => new Map());
+  const [roundupLoadingDay, setRoundupLoadingDay] = useState<number | null>(null);
+  const [roundupError, setRoundupError] = useState<string | null>(null);
   const entryUrls = useRef<string[]>([]);
   const draftUrl = useRef<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -158,6 +203,7 @@ export default function FoodPhotoApp() {
 
   useEffect(() => {
     void refreshEntries();
+    void refreshRoundups();
 
     return () => {
       revokeEntryUrls();
@@ -183,7 +229,8 @@ export default function FoodPhotoApp() {
           id: entry.id,
           timestamp: entry.timestamp,
           note: entry.note,
-          photoUrl
+          photoUrl,
+          photo: entry.photo
         };
       });
 
@@ -194,6 +241,11 @@ export default function FoodPhotoApp() {
     } catch {
       setStorageError("Local photo storage is not available in this browser.");
     }
+  }
+
+  async function refreshRoundups() {
+    const stored = await listStoredRoundups();
+    setRoundups(new Map(stored.map((roundup) => [roundup.dayTimestamp, roundup])));
   }
 
   function openCamera() {
@@ -257,6 +309,52 @@ export default function FoodPhotoApp() {
     await refreshEntries();
   }
 
+  async function generateRoundup(dayTimestamp: number, items: FoodEntry[]) {
+    setRoundupLoadingDay(dayTimestamp);
+    setRoundupError(null);
+
+    try {
+      const photos = await Promise.all(
+        items.slice(0, 8).map(async (entry) => ({
+          timestamp: entry.timestamp,
+          note: entry.note,
+          photoDataUrl: await blobToDataUrl(entry.photo)
+        }))
+      );
+
+      const response = await fetch("/api/roundup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          dayLabel: dayLabel(dayTimestamp),
+          date: dateChip(dayTimestamp),
+          entries: photos
+        })
+      });
+
+      const body = (await response.json()) as { roundup?: string; error?: string };
+
+      if (!response.ok || !body.roundup) {
+        throw new Error(body.error ?? "Roundup failed");
+      }
+
+      const roundup = {
+        dayTimestamp,
+        generatedAt: Date.now(),
+        text: body.roundup
+      };
+
+      await saveStoredRoundup(roundup);
+      setRoundups((current) => new Map(current).set(dayTimestamp, roundup));
+    } catch (error) {
+      setRoundupError(error instanceof Error ? error.message : "The roundup could not be generated.");
+    } finally {
+      setRoundupLoadingDay(null);
+    }
+  }
+
   return (
     <main className={styles.appShell}>
       <section className={styles.appSurface} aria-label="FoodPhoto">
@@ -292,6 +390,13 @@ export default function FoodPhotoApp() {
                     {group.items.length} {group.items.length === 1 ? "photo" : "photos"}
                   </span>
                 </div>
+                <RoundupCard
+                  dateLabel={`${dayLabel(group.dayTimestamp)} ${dateChip(group.dayTimestamp)}`}
+                  isLoading={roundupLoadingDay === group.dayTimestamp}
+                  error={roundupError}
+                  roundup={roundups.get(group.dayTimestamp)}
+                  onGenerate={() => void generateRoundup(group.dayTimestamp, group.items)}
+                />
                 <div className={styles.grid}>
                   {group.items.map((entry) => (
                     <button
@@ -328,6 +433,48 @@ export default function FoodPhotoApp() {
         ) : null}
       </section>
     </main>
+  );
+}
+
+function RoundupCard({
+  dateLabel,
+  isLoading,
+  error,
+  roundup,
+  onGenerate
+}: {
+  dateLabel: string;
+  isLoading: boolean;
+  error: string | null;
+  roundup: StoredRoundup | undefined;
+  onGenerate: () => void;
+}) {
+  return (
+    <div className={styles.roundupCard}>
+      <div className={styles.roundupHeader}>
+        <div>
+          <p className={styles.roundupEyebrow}>AI coach</p>
+          <h2>Daily roundup</h2>
+        </div>
+        <button className={styles.roundupButton} type="button" onClick={onGenerate} disabled={isLoading}>
+          {isLoading ? "Thinking..." : roundup ? "Regenerate" : "Generate"}
+        </button>
+      </div>
+
+      {roundup ? (
+        <>
+          <p className={styles.roundupText}>{roundup.text}</p>
+          <p className={styles.roundupMeta}>Saved for {dateLabel}</p>
+        </>
+      ) : (
+        <p className={styles.roundupEmpty}>
+          Generate a short reflection from this day&apos;s photos and notes. Photos are sent to OpenRouter only when
+          you tap the button.
+        </p>
+      )}
+
+      {error ? <p className={styles.roundupError}>{error}</p> : null}
+    </div>
   );
 }
 

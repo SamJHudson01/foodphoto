@@ -184,6 +184,85 @@
   white-space: nowrap;
 }
 
+.roundupCard {
+  margin: 10px 12px 8px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(229, 168, 75, 0.08), rgba(229, 168, 75, 0)),
+    var(--bg-surface);
+}
+
+.roundupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.roundupHeader h2 {
+  margin: 1px 0 0;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.roundupEyebrow {
+  margin: 0;
+  color: var(--accent-amber);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.roundupButton {
+  min-height: 36px;
+  flex-shrink: 0;
+  padding: 0 12px;
+  border: 1px solid rgba(229, 168, 75, 0.35);
+  border-radius: 999px;
+  color: #1a1208;
+  background: var(--accent-amber);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.roundupButton:disabled {
+  opacity: 0.65;
+}
+
+.roundupText {
+  margin: 12px 0 0;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.roundupEmpty {
+  margin: 12px 0 0;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.roundupMeta {
+  margin: 12px 0 0;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.roundupError {
+  margin: 10px 0 0;
+  color: var(--accent-red);
+  font-size: 12px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
