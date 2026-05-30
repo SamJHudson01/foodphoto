@@ -1,5 +1,6 @@
 .appShell {
-  height: 100dvh;
+  position: fixed;
+  inset: 0;
   display: flex;
   justify-content: center;
   overflow: hidden;
@@ -24,11 +25,19 @@
   min-height: 0;
   flex: 1;
   overflow: auto;
+  overscroll-behavior: contain;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .galleryScroll::-webkit-scrollbar {
   width: 0;
+}
+
+.galleryScrollEmpty {
+  display: flex;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .inlineError {
@@ -41,11 +50,13 @@
 }
 
 .emptyState {
-  min-height: 100%;
+  min-height: 0;
+  flex: 1;
   display: grid;
   align-content: center;
   justify-items: center;
-  padding: 24px 24px 104px;
+  padding: 24px 24px 96px;
+  overflow: hidden;
   text-align: center;
 }
 

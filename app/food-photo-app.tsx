@@ -270,7 +270,10 @@ export default function FoodPhotoApp() {
           <p className={styles.loggedCount}>{entries.length} logged</p>
         </header>
 
-        <div className={styles.galleryScroll} ref={scrollRef}>
+        <div
+          className={`${styles.galleryScroll} ${groups.length === 0 ? styles.galleryScrollEmpty : ""}`}
+          ref={scrollRef}
+        >
           {storageError ? <p className={styles.inlineError}>{storageError}</p> : null}
 
           {groups.length === 0 ? (
