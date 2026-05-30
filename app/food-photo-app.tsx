@@ -26,6 +26,19 @@ type FoodEntry = {
   photoUrl: string;
 };
 
+type HostedEntry = {
+  id: string;
+  capturedAt: Date;
+  note: string;
+  publicUrl: string;
+};
+
+type HostedRoundup = {
+  dayStart: Date;
+  generatedAt: Date;
+  text: string;
+};
+
 type DraftEntry = {
   timestamp: number;
   photo: Blob;
@@ -284,7 +297,7 @@ export default function FoodPhotoApp() {
 
   const entries = useMemo(
     () =>
-      (entriesQuery.data ?? []).map((entry) => ({
+      ((entriesQuery.data ?? []) as HostedEntry[]).map((entry) => ({
         id: entry.id,
         timestamp: entry.capturedAt.getTime(),
         note: entry.note,
@@ -296,7 +309,7 @@ export default function FoodPhotoApp() {
   const roundups = useMemo(
     () =>
       new Map(
-        (roundupsQuery.data ?? []).map((roundup) => [
+        ((roundupsQuery.data ?? []) as HostedRoundup[]).map((roundup) => [
           roundup.dayStart.toISOString().slice(0, 10),
           {
             dayTimestamp: roundup.dayStart.getTime(),
