@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { formatTime } from "./date-format";
 import styles from "./page.module.css";
 
 export type DraftEntry = {
@@ -8,14 +9,6 @@ export type DraftEntry = {
   photo: Blob;
   photoUrl: string;
 };
-
-function formatTime(timestamp: number) {
-  return new Date(timestamp).toLocaleTimeString("en-GB", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true
-  });
-}
 
 export function ConfirmOverlay({
   draft,

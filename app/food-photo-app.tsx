@@ -3,6 +3,8 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmOverlay, type DraftEntry } from "./confirm-overlay";
+import { dateChip, dayLabel, formatTime, startOfDay } from "./date-format";
+import { Lightbox, type FoodEntry } from "./lightbox";
 import styles from "./page.module.css";
 import { trpc } from "./trpc";
 
@@ -23,13 +25,6 @@ type StoredRoundup = {
 type RoundupSection = {
   label: "Overview" | "Meals" | "Rundown" | "Observations" | "Experiment" | "Identity";
   text: string;
-};
-
-type FoodEntry = {
-  id: string;
-  timestamp: number;
-  note: string;
-  photoUrl: string;
 };
 
 type DayGroup = {
@@ -95,37 +90,6 @@ async function markStoredEntryMigrated(id: string) {
   if (!entry) return;
 
   await db.put("entries", { ...entry, migratedAt: Date.now() });
-}
-
-function startOfDay(timestamp: number) {
-  const date = new Date(timestamp);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
-}
-
-function formatTime(timestamp: number) {
-  return new Date(timestamp).toLocaleTimeString("en-GB", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true
-  });
-}
-
-function dayLabel(dayTimestamp: number) {
-  const today = startOfDay(Date.now());
-  const diff = Math.round((today - dayTimestamp) / 86_400_000);
-
-  if (diff === 0) return "Today";
-  if (diff === 1) return "Yesterday";
-
-  return new Date(dayTimestamp).toLocaleDateString("en-GB", { weekday: "long" });
-}
-
-function dateChip(timestamp: number) {
-  return new Date(timestamp).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short"
-  });
 }
 
 function groupByDay(entries: FoodEntry[]): DayGroup[] {
@@ -330,6 +294,7 @@ export default function FoodPhotoApp() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationError, setMigrationError] = useState<string | null>(null);
   const draftUrl = useRef<string | null>(null);
+  const deleteEntryInFlight = useRef(false);
   const saveDraftInFlight = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -436,8 +401,16 @@ export default function FoodPhotoApp() {
   }
 
   async function deleteEntry(id: string) {
-    await deleteEntryMutation.mutateAsync({ id });
-    setSelectedId(null);
+    if (deleteEntryInFlight.current) return;
+
+    deleteEntryInFlight.current = true;
+
+    try {
+      await deleteEntryMutation.mutateAsync({ id });
+      setSelectedId(null);
+    } finally {
+      deleteEntryInFlight.current = false;
+    }
   }
 
   async function generateRoundup(dayTimestamp: number) {
@@ -846,79 +819,6 @@ function CameraOverlay({
           <span />
         </button>
         <span className={styles.cameraSpacer} />
-      </div>
-    </div>
-  );
-}
-
-function Lightbox({
-  entry,
-  onClose,
-  onDelete,
-  onSaveNote
-}: {
-  entry: FoodEntry;
-  onClose: () => void;
-  onDelete: (id: string) => void;
-  onSaveNote: (id: string, note: string) => Promise<void>;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [note, setNote] = useState(entry.note);
-
-  async function save() {
-    await onSaveNote(entry.id, note);
-    setIsEditing(false);
-  }
-
-  return (
-    <div className={styles.lightbox} onClick={onClose}>
-      <button className={styles.lightboxClose} type="button" aria-label="Close" onClick={onClose}>
-        <CloseIcon />
-      </button>
-      <div className={styles.lightboxStage} onClick={(event) => event.stopPropagation()}>
-        <img src={entry.photoUrl} alt={entry.note || "Food photo"} />
-        <div className={styles.lightboxMeta}>
-          {isEditing ? (
-            <>
-              <label className={styles.noteLabel} htmlFor="edit-note">
-                Note
-              </label>
-              <textarea
-                id="edit-note"
-                className={styles.noteInput}
-                rows={3}
-                maxLength={140}
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-              />
-              <div className={styles.lightboxActions}>
-                <button className={styles.ghostButton} type="button" onClick={() => setIsEditing(false)}>
-                  Cancel
-                </button>
-                <button className={styles.primaryButton} type="button" onClick={save}>
-                  Save note
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className={`${styles.lightboxNote} ${entry.note ? "" : styles.lightboxNoteEmpty}`}>
-                {entry.note || "No note added"}
-              </p>
-              <p className={styles.lightboxTime}>
-                {dayLabel(startOfDay(entry.timestamp))} | {dateChip(entry.timestamp)} | {formatTime(entry.timestamp)}
-              </p>
-              <div className={styles.lightboxActions}>
-                <button className={styles.ghostButton} type="button" onClick={() => setIsEditing(true)}>
-                  Edit note
-                </button>
-                <button className={styles.deleteButton} type="button" onClick={() => onDelete(entry.id)}>
-                  Delete
-                </button>
-              </div>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );
