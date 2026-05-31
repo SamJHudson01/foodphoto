@@ -1,3 +1,8 @@
+export type DayGroup<T extends { timestamp: number }> = {
+  dayTimestamp: number;
+  items: T[];
+};
+
 export function startOfDay(timestamp: number) {
   const date = new Date(timestamp);
   date.setHours(0, 0, 0, 0);
@@ -27,4 +32,36 @@ export function dateChip(timestamp: number) {
     day: "numeric",
     month: "short"
   });
+}
+
+export function dayKey(dayTimestamp: number) {
+  const date = new Date(dayTimestamp);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function dayRange(dayTimestamp: number) {
+  const start = new Date(dayTimestamp);
+  const end = new Date(dayTimestamp);
+  end.setDate(end.getDate() + 1);
+
+  return { start, end };
+}
+
+export function groupEntriesByDay<T extends { timestamp: number }>(entries: T[]): DayGroup<T>[] {
+  const grouped = new Map<number, T[]>();
+
+  for (const entry of entries) {
+    const key = startOfDay(entry.timestamp);
+    const items = grouped.get(key) ?? [];
+    items.push(entry);
+    grouped.set(key, items);
+  }
+
+  return [...grouped.entries()].map(([dayTimestamp, items]) => ({
+    dayTimestamp,
+    items
+  }));
 }

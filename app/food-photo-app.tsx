@@ -3,9 +3,10 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmOverlay, type DraftEntry } from "./confirm-overlay";
-import { dateChip, dayLabel, formatTime, startOfDay } from "./date-format";
+import { dateChip, dayKey, dayLabel, dayRange, formatTime, groupEntriesByDay } from "./date-format";
 import { Lightbox, type FoodEntry } from "./lightbox";
 import styles from "./page.module.css";
+import { RoundupCard } from "./roundup-card";
 import { trpc } from "./trpc";
 
 type StoredEntry = {
@@ -19,11 +20,6 @@ type StoredEntry = {
 type StoredRoundup = {
   dayTimestamp: number;
   generatedAt: number;
-  text: string;
-};
-
-type RoundupSection = {
-  label: "Overview" | "Meals" | "Rundown" | "Observations" | "Experiment" | "Identity";
   text: string;
 };
 
@@ -90,70 +86,6 @@ async function markStoredEntryMigrated(id: string) {
   if (!entry) return;
 
   await db.put("entries", { ...entry, migratedAt: Date.now() });
-}
-
-function groupByDay(entries: FoodEntry[]): DayGroup[] {
-  const grouped = new Map<number, FoodEntry[]>();
-
-  for (const entry of entries) {
-    const key = startOfDay(entry.timestamp);
-    const items = grouped.get(key) ?? [];
-    items.push(entry);
-    grouped.set(key, items);
-  }
-
-  return [...grouped.entries()].map(([dayTimestamp, items]: [number, FoodEntry[]]) => ({
-    dayTimestamp,
-    items
-  }));
-}
-
-function parseRoundupText(text: string): RoundupSection[] {
-  const labels: RoundupSection["label"][] = ["Overview", "Meals", "Rundown", "Observations", "Experiment", "Identity"];
-  const sections: RoundupSection[] = [];
-
-  for (let index = 0; index < labels.length; index += 1) {
-    const label = labels[index];
-    const nextLabel = labels[index + 1];
-    const start = text.indexOf(`${label}:`);
-
-    if (start === -1) continue;
-
-    const contentStart = start + label.length + 1;
-    const end = nextLabel ? text.indexOf(`${nextLabel}:`, contentStart) : text.length;
-    const sectionText = text.slice(contentStart, end === -1 ? text.length : end).trim();
-
-    if (sectionText) {
-      sections.push({ label, text: sectionText });
-    }
-  }
-
-  return sections;
-}
-
-function roundupPreview(text: string, sections: RoundupSection[]) {
-  const overview = sections.find((section: RoundupSection) => section.label === "Overview")?.text ?? text;
-  const clean = overview.replace(/\s+/g, " ").trim();
-
-  if (clean.length <= 120) return clean;
-
-  return `${clean.slice(0, 117).trim()}...`;
-}
-
-function dayKey(dayTimestamp: number) {
-  const date = new Date(dayTimestamp);
-  const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, "0");
-  const day = `${date.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function dayRange(dayTimestamp: number) {
-  const start = new Date(dayTimestamp);
-  const end = new Date(dayTimestamp);
-  end.setDate(end.getDate() + 1);
-
-  return { start, end };
 }
 
 function blobToDataUrl(blob: Blob) {
@@ -246,14 +178,6 @@ function CameraIcon() {
   );
 }
 
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m6 6 12 12M18 6 6 18" />
-    </svg>
-  );
-}
-
 export default function FoodPhotoApp() {
   const utils = trpc.useUtils();
   const entriesQuery = trpc.entries.list.useQuery(undefined, {
@@ -308,7 +232,7 @@ export default function FoodPhotoApp() {
       })),
     [entriesQuery.data]
   );
-  const groups = useMemo(() => groupByDay(entries), [entries]);
+  const groups = useMemo(() => groupEntriesByDay(entries) as DayGroup[], [entries]);
   const roundups = useMemo(
     () =>
       new Map(
@@ -597,103 +521,6 @@ export default function FoodPhotoApp() {
         ) : null}
       </section>
     </main>
-  );
-}
-
-function RoundupCard({
-  dateLabel,
-  isLoading,
-  error,
-  roundup,
-  onGenerate
-}: {
-  dateLabel: string;
-  isLoading: boolean;
-  error: string | null;
-  roundup: StoredRoundup | undefined;
-  onGenerate: () => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const sections = roundup ? parseRoundupText(roundup.text) : [];
-  const preview = roundup ? roundupPreview(roundup.text, sections) : "";
-
-  return (
-    <div className={styles.roundupCard}>
-      <div className={styles.roundupHeader}>
-        <div>
-          <p className={styles.roundupEyebrow}>AI coach</p>
-          <h2>Daily roundup</h2>
-        </div>
-        <button className={styles.roundupButton} type="button" onClick={onGenerate} disabled={isLoading}>
-          {isLoading ? "Thinking..." : roundup ? "Regenerate" : "Generate"}
-        </button>
-      </div>
-
-      {roundup ? (
-        <>
-          <button className={styles.roundupPreview} type="button" onClick={() => setIsOpen(true)}>
-            <span>{preview}</span>
-            <strong>Open</strong>
-          </button>
-
-          <p className={styles.roundupMeta}>Saved for {dateLabel}</p>
-          {isOpen ? (
-            <RoundupOverlay
-              dateLabel={dateLabel}
-              sections={sections}
-              text={roundup.text}
-              onClose={() => setIsOpen(false)}
-            />
-          ) : null}
-        </>
-      ) : (
-        <p className={styles.roundupEmpty}>
-          Generate one performance nutrition micro-adjustment from this day&apos;s photos and notes. Photos are sent to
-          Vertex AI only when you tap the button.
-        </p>
-      )}
-
-      {error ? <p className={styles.roundupError}>{error}</p> : null}
-    </div>
-  );
-}
-
-function RoundupOverlay({
-  dateLabel,
-  sections,
-  text,
-  onClose
-}: {
-  dateLabel: string;
-  sections: RoundupSection[];
-  text: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className={styles.roundupOverlay} onClick={onClose}>
-      <button className={styles.lightboxClose} type="button" aria-label="Close" onClick={onClose}>
-        <CloseIcon />
-      </button>
-      <article className={styles.roundupSheet} onClick={(event) => event.stopPropagation()}>
-        <div className={styles.roundupSheetHeader}>
-          <p className={styles.roundupEyebrow}>AI coach</p>
-          <h2>Daily roundup</h2>
-          <p>Saved for {dateLabel}</p>
-        </div>
-        {sections.length > 0 ? (
-          <div className={styles.roundupSections}>
-            {sections.map((section: RoundupSection) => (
-              <section className={styles.roundupSection} key={section.label}>
-                <h3>{section.label}</h3>
-                <p>{section.text}</p>
-              </section>
-            ))}
-          </div>
-        ) : (
-          <p className={styles.roundupText}>{text}</p>
-        )}
-      </article>
-    </div>
   );
 }
 

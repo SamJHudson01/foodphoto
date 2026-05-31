@@ -31,7 +31,7 @@ type VertexResponse = {
   };
 };
 
-type RoundupFoodEntry = {
+export type RoundupFoodEntry = {
   capturedAt: Date;
   contentType: string;
   note: string;
@@ -92,7 +92,7 @@ function logRoundup(level: "error" | "info" | "warn", requestId: string, event: 
   }
 }
 
-function getRoundupText(result: VertexResponse) {
+export function getRoundupText(result: VertexResponse) {
   return (
     result.candidates?.[0]?.content?.parts
       ?.map((part) => part.text ?? "")
@@ -101,11 +101,11 @@ function getRoundupText(result: VertexResponse) {
   );
 }
 
-function dayKeyToDate(dayKey: string) {
+export function dayKeyToDate(dayKey: string) {
   return new Date(`${dayKey}T00:00:00.000Z`);
 }
 
-function buildCoachPrompt(dayLabel: string, textSummary: string) {
+export function buildCoachPrompt(dayLabel: string, textSummary: string) {
   return `<system_role>
 You are an Elite Performance Dietitian and Master Behavioral Nutrition Coach (operating at the level of Precision Nutrition Level 2 and EXOS human performance specialists). Your sole function is to evaluate daily food photo logs and text notes, identify physiological and behavioral patterns, and deliver a single, high-leverage micro-adjustment.
 </system_role>
@@ -242,7 +242,21 @@ ${textSummary}
 </formatting_rules>`;
 }
 
-async function imagePartFromEntry(entry: RoundupFoodEntry, index: number, requestId: string): Promise<VertexPart> {
+export function buildRoundupTextSummary(entries: RoundupFoodEntry[], timeZone = "UTC") {
+  return entries
+    .map((entry, index) => {
+      const time = entry.capturedAt.toLocaleTimeString("en-GB", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone
+      });
+      return `${index + 1}. ${time}${entry.note ? ` - note: ${entry.note}` : ""}`;
+    })
+    .join("\n");
+}
+
+export async function imagePartFromEntry(entry: RoundupFoodEntry, index: number, requestId: string): Promise<VertexPart> {
   const startedAt = Date.now();
   let host = "unknown";
 
@@ -402,17 +416,7 @@ export const roundupsRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Add at least one food photo first." });
       }
 
-      const textSummary = entries
-        .map((entry: RoundupFoodEntry, index: number) => {
-          const time = entry.capturedAt.toLocaleTimeString("en-GB", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-            timeZone: input.timeZone ?? "UTC"
-          });
-          return `${index + 1}. ${time}${entry.note ? ` - note: ${entry.note}` : ""}`;
-        })
-        .join("\n");
+      const textSummary = buildRoundupTextSummary(entries, input.timeZone ?? "UTC");
 
       logRoundup("info", requestId, "prompt_built", {
         textSummaryChars: textSummary.length
