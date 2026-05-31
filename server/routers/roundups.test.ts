@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCoachPrompt,
+  buildPreviousCoachSummaryContext,
   buildRoundupTextSummary,
   dayKeyToDate,
   getRoundupText,
   imagePartFromEntry,
+  previousSummaryWindowStart,
   roundupsRouter,
   type RoundupFoodEntry
 } from "./roundups";
@@ -65,12 +67,32 @@ class RoundupMemoryPrisma {
   };
 
   dailyRoundup = {
-    findMany: vi.fn(async ({ where }: { where: { userId: string } }) => {
-      return this.roundups
-        .filter((roundup) => roundup.userId === where.userId)
-        .sort((a, b) => b.dayStart.getTime() - a.dayStart.getTime())
-        .slice(0, 120);
-    }),
+    findMany: vi.fn(
+      async ({
+        where,
+        orderBy,
+        take
+      }: {
+        where: { userId: string; dayStart?: { gte?: Date; lt?: Date } };
+        orderBy?: { dayStart: "asc" | "desc" };
+        take?: number;
+      }) => {
+        const rows = this.roundups
+          .filter((roundup) => {
+            if (roundup.userId !== where.userId) return false;
+            if (where.dayStart?.gte && roundup.dayStart < where.dayStart.gte) return false;
+            if (where.dayStart?.lt && roundup.dayStart >= where.dayStart.lt) return false;
+            return true;
+          })
+          .sort((a, b) =>
+            orderBy?.dayStart === "asc"
+              ? a.dayStart.getTime() - b.dayStart.getTime()
+              : b.dayStart.getTime() - a.dayStart.getTime()
+          );
+
+        return typeof take === "number" ? rows.slice(0, take) : rows;
+      }
+    ),
     upsert: vi.fn(
       async ({
         where,
@@ -128,6 +150,20 @@ function entry(input: Partial<RoundupFoodEntry>): RoundupFoodEntry {
   };
 }
 
+function roundup(dayKey: string, text: string, userId = "user-1"): RoundupRow {
+  const now = new Date("2026-05-31T11:00:00.000Z");
+
+  return {
+    id: `roundup-${dayKey}`,
+    userId,
+    dayStart: dayKeyToDate(dayKey),
+    text,
+    generatedAt: now,
+    createdAt: now,
+    updatedAt: now
+  };
+}
+
 beforeEach(() => {
   process.env.VERTEX_API_KEY = "test-vertex-key";
   vi.restoreAllMocks();
@@ -151,7 +187,11 @@ describe("roundup deterministic boundaries", () => {
   });
 
   it("builds a prompt that forces meal bullets, comprehensive rundown, and one micro-adjustment", () => {
-    const prompt = buildCoachPrompt("Today 31 May", "1. 9:15 am - note: eggs after gym");
+    const prompt = buildCoachPrompt(
+      "Today 31 May",
+      "1. 9:15 am - note: eggs after gym",
+      "1. 2026-05-30\nOverview: Yesterday highlighted a breakfast Protein Anchor."
+    );
 
     expect(prompt).toContain("Overview:");
     expect(prompt).toContain("Meals:");
@@ -160,11 +200,27 @@ describe("roundup deterministic boundaries", () => {
     expect(prompt).toContain("Experiment:");
     expect(prompt).toContain("Identity:");
     expect(prompt).toContain("Day: Today 31 May");
+    expect(prompt).toContain("Previous 7 Days Coach Summaries:");
+    expect(prompt).toContain("2026-05-30");
+    expect(prompt).toContain("Yesterday highlighted a breakfast Protein Anchor.");
     expect(prompt).toContain("1. 9:15 am - note: eggs after gym");
     expect(prompt).toContain("You may only propose ONE micro-adjustment per review.");
+    expect(prompt).toContain("continuity context only");
+    expect(prompt).toContain("Do not let previous summaries override today's photos and notes.");
     expect(prompt).toContain("Name and briefly describe each visible meal or eating occasion.");
     expect(prompt).toContain("Give a comprehensive day-quality read.");
     expect(prompt).toContain("You are strictly forbidden from estimating calories, macros in grams, or predicting weight loss.");
+  });
+
+  it("formats previous coach summaries as explicit chronological context with a no-history fallback", () => {
+    expect(buildPreviousCoachSummaryContext([])).toBe("None available.");
+    expect(
+      buildPreviousCoachSummaryContext([
+        { dayStart: dayKeyToDate("2026-05-29"), text: "Overview: Add berries.\n" },
+        { dayStart: dayKeyToDate("2026-05-30"), text: "Overview: Keep breakfast protein." }
+      ])
+    ).toBe("1. 2026-05-29\nOverview: Add berries.\n\n2. 2026-05-30\nOverview: Keep breakfast protein.");
+    expect(previousSummaryWindowStart(dayKeyToDate("2026-05-31")).toISOString()).toBe("2026-05-24T00:00:00.000Z");
   });
 
   it("extracts Vertex text from all candidate text parts without keeping transport whitespace", () => {
@@ -226,6 +282,13 @@ describe("roundup deterministic boundaries", () => {
 describe("roundup generation behavior", () => {
   it("fetches the day's images, sends them with the prompt to Vertex, and saves the returned roundup", async () => {
     const prisma = new RoundupMemoryPrisma();
+    prisma.roundups = [
+      roundup("2026-05-23", "Overview: This is outside the 7 day context window."),
+      roundup("2026-05-24", "Overview: Breakfast protein was the prior lever."),
+      roundup("2026-05-30", "Overview: Produce color was the most recent lever."),
+      roundup("2026-05-31", "Overview: Existing current-day roundup should not be prompt context."),
+      roundup("2026-05-30", "Overview: Other user's private context.", "user-2")
+    ];
     prisma.entries = [
       entry({
         capturedAt: new Date("2026-05-31T08:15:00.000Z"),
@@ -279,11 +342,11 @@ describe("roundup generation behavior", () => {
     });
 
     expect(saved).toMatchObject({
-      id: "roundup-1",
+      id: "roundup-2026-05-31",
       dayStart: new Date("2026-05-31T00:00:00.000Z"),
       text: expect.stringContaining("Overview: You captured a useful spread of meals.")
     });
-    expect(prisma.roundups).toHaveLength(1);
+    expect(prisma.roundups).toHaveLength(5);
     expect(fetchMock).toHaveBeenCalledTimes(3);
 
     const vertexCall = fetchMock.mock.calls.find(([url]) => String(url).startsWith("https://aiplatform.googleapis.com/"));
@@ -291,6 +354,12 @@ describe("roundup generation behavior", () => {
     const requestBody = JSON.parse((vertexCall[1] as RequestInit).body as string);
     const parts = requestBody.contents[0].parts;
     expect(parts).toHaveLength(3);
+    expect(parts[0].text).toContain("Previous 7 Days Coach Summaries:");
+    expect(parts[0].text).toContain("1. 2026-05-24\nOverview: Breakfast protein was the prior lever.");
+    expect(parts[0].text).toContain("2. 2026-05-30\nOverview: Produce color was the most recent lever.");
+    expect(parts[0].text).not.toContain("outside the 7 day context window");
+    expect(parts[0].text).not.toContain("Existing current-day roundup should not be prompt context");
+    expect(parts[0].text).not.toContain("Other user's private context");
     expect(parts[0].text).toContain("1. 9:15 am - note: eggs after gym");
     expect(parts[0].text).toContain("2. 1:30 pm - note: chicken salad");
     expect(parts[1]).toEqual({ inlineData: { mimeType: "image/jpeg", data: Buffer.from([10, 11]).toString("base64") } });

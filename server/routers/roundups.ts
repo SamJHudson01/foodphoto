@@ -38,6 +38,11 @@ export type RoundupFoodEntry = {
   publicUrl: string;
 };
 
+export type PreviousCoachSummary = {
+  dayStart: Date;
+  text: string;
+};
+
 const roundupSelect = {
   id: true,
   dayStart: true,
@@ -105,7 +110,24 @@ export function dayKeyToDate(dayKey: string) {
   return new Date(`${dayKey}T00:00:00.000Z`);
 }
 
-export function buildCoachPrompt(dayLabel: string, textSummary: string) {
+export function previousSummaryWindowStart(dayStart: Date) {
+  const start = new Date(dayStart);
+  start.setUTCDate(start.getUTCDate() - 7);
+  return start;
+}
+
+export function buildPreviousCoachSummaryContext(summaries: PreviousCoachSummary[]) {
+  if (summaries.length === 0) return "None available.";
+
+  return summaries
+    .map((summary, index) => {
+      const day = summary.dayStart.toISOString().slice(0, 10);
+      return `${index + 1}. ${day}\n${summary.text.trim()}`;
+    })
+    .join("\n\n");
+}
+
+export function buildCoachPrompt(dayLabel: string, textSummary: string, previousCoachSummaries = "None available.") {
   return `<system_role>
 You are an Elite Performance Dietitian and Master Behavioral Nutrition Coach (operating at the level of Precision Nutrition Level 2 and EXOS human performance specialists). Your sole function is to evaluate daily food photo logs and text notes, identify physiological and behavioral patterns, and deliver a single, high-leverage micro-adjustment.
 </system_role>
@@ -166,15 +188,16 @@ C. HABIT STACKING & IDENTITY (James Clear / BJ Fogg)
 <execution_pipeline>
 Step 1: Analyze the visual data against the USOC Plate and Protein Anchoring standards.
 Step 2: Read the user notes for context (training load, stress, energy levels).
-Step 3: Give a comprehensive day-quality rundown before choosing an intervention. Cover the quality of the whole day, not only the biggest problem. You must mention visible strengths, protein anchoring, produce/fiber footprint, energy-density/liquid patterns, snack structure, and periodization match when visible.
-Step 4: Run the Minimum Effective Dose (MED) Decision Tree:
+Step 3: Read the previous 7 days of coach summaries, where available, as continuity context only. Look for repeated patterns, recently suggested experiments, and whether today's single lever should continue, adapt, or avoid repeating a recent suggestion. Do not let previous summaries override today's photos and notes.
+Step 4: Give a comprehensive day-quality rundown before choosing an intervention. Cover the quality of the whole day, not only the biggest problem. You must mention visible strengths, protein anchoring, produce/fiber footprint, energy-density/liquid patterns, snack structure, and periodization match when visible.
+Step 5: Run the Minimum Effective Dose (MED) Decision Tree:
    - IF day is grossly under/over-fueled -> Flag visual volume.
    - ELSE IF protein is missing at an occasion -> Flag protein anchoring.
    - ELSE IF produce is < 25% -> Flag fiber volume.
    - ELSE IF plate composition does not match training day -> Flag periodization.
    - ELSE IF liquid calories are present -> Flag hydration/liquid swap.
-Step 5: Select the SINGLE highest-priority flag from Step 4.
-Step 6: Draft the response using the allowed lexicon.
+Step 6: Select the SINGLE highest-priority flag from Step 5.
+Step 7: Draft the response using the allowed lexicon.
 </execution_pipeline>
 
 <lexicon>
@@ -237,6 +260,9 @@ Experiment: [One high-leverage micro-adjustment. Must be an additive habit-stack
 Identity: [One brief sentence anchoring the experiment to the user's identity.]
 
 Day: ${dayLabel}
+Previous 7 Days Coach Summaries:
+${previousCoachSummaries}
+
 Entries:
 ${textSummary}
 </formatting_rules>`;
@@ -416,9 +442,35 @@ export const roundupsRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Add at least one food photo first." });
       }
 
+      const targetDayStart = dayKeyToDate(input.dayKey);
+      const previousStartedAt = Date.now();
+      const previousCoachSummaries = await ctx.prisma.dailyRoundup.findMany({
+        where: {
+          userId: user.id,
+          dayStart: {
+            gte: previousSummaryWindowStart(targetDayStart),
+            lt: targetDayStart
+          }
+        },
+        orderBy: { dayStart: "asc" },
+        take: 7,
+        select: {
+          dayStart: true,
+          text: true
+        }
+      });
+
+      logRoundup("info", requestId, "previous_summaries_loaded", {
+        durationMs: Date.now() - previousStartedAt,
+        summaryCount: previousCoachSummaries.length
+      });
+
       const textSummary = buildRoundupTextSummary(entries, input.timeZone ?? "UTC");
+      const previousCoachSummaryContext = buildPreviousCoachSummaryContext(previousCoachSummaries);
 
       logRoundup("info", requestId, "prompt_built", {
+        previousSummaryChars: previousCoachSummaryContext.length,
+        previousSummaryCount: previousCoachSummaries.length,
         textSummaryChars: textSummary.length
       });
 
@@ -451,7 +503,7 @@ export const roundupsRouter = router({
                 role: "user",
                 parts: [
                   {
-                    text: buildCoachPrompt(input.label, textSummary)
+                    text: buildCoachPrompt(input.label, textSummary, previousCoachSummaryContext)
                   },
                   ...imageParts
                 ]
