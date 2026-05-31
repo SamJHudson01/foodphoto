@@ -2,6 +2,7 @@
 
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ConfirmOverlay, type DraftEntry } from "./confirm-overlay";
 import styles from "./page.module.css";
 import { trpc } from "./trpc";
 
@@ -47,12 +48,6 @@ type HostedRoundup = {
   dayStart: Date;
   generatedAt: Date;
   text: string;
-};
-
-type DraftEntry = {
-  timestamp: number;
-  photo: Blob;
-  photoUrl: string;
 };
 
 interface FoodPhotosDb extends DBSchema {
@@ -335,6 +330,7 @@ export default function FoodPhotoApp() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [migrationError, setMigrationError] = useState<string | null>(null);
   const draftUrl = useRef<string | null>(null);
+  const saveDraftInFlight = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const entries = useMemo(
@@ -404,7 +400,9 @@ export default function FoodPhotoApp() {
   }
 
   async function saveDraft(note: string) {
-    if (!draft) return;
+    if (!draft || saveDraftInFlight.current) return;
+
+    saveDraftInFlight.current = true;
 
     try {
       const photoDataUrl = await blobToDataUrl(draft.photo);
@@ -428,6 +426,8 @@ export default function FoodPhotoApp() {
       window.setTimeout(() => setJustAdded(null), 1200);
     } catch {
       setStorageError("That photo could not be saved.");
+    } finally {
+      saveDraftInFlight.current = false;
     }
   }
 
@@ -846,50 +846,6 @@ function CameraOverlay({
           <span />
         </button>
         <span className={styles.cameraSpacer} />
-      </div>
-    </div>
-  );
-}
-
-function ConfirmOverlay({
-  draft,
-  onRetake,
-  onSave
-}: {
-  draft: DraftEntry;
-  onRetake: () => void;
-  onSave: (note: string) => void;
-}) {
-  const [note, setNote] = useState("");
-
-  return (
-    <div className={styles.confirm}>
-      <div className={styles.confirmScroll}>
-        <img className={styles.confirmPhoto} src={draft.photoUrl} alt="Captured meal" />
-        <div className={styles.confirmWhen}>
-          <span>Today</span>
-          <span>{formatTime(draft.timestamp)}</span>
-        </div>
-        <label className={styles.noteLabel} htmlFor="entry-note">
-          Note <span>optional</span>
-        </label>
-        <textarea
-          id="entry-note"
-          className={styles.noteInput}
-          rows={3}
-          maxLength={140}
-          placeholder="What is it? How was it?"
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
-      </div>
-      <div className={styles.confirmActions}>
-        <button className={styles.ghostButton} type="button" onClick={onRetake}>
-          Retake
-        </button>
-        <button className={styles.primaryButton} type="button" onClick={() => onSave(note)}>
-          Save
-        </button>
       </div>
     </div>
   );

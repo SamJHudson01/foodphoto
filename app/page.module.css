@@ -792,6 +792,13 @@
   opacity: 0.45;
 }
 
+.ghostButton:disabled,
+.primaryButton:disabled,
+.deleteButton:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 .confirm {
   position: absolute;
   inset: 0;
