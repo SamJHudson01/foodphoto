@@ -204,6 +204,10 @@ describe("roundup deterministic boundaries", () => {
     expect(prompt).toContain("2026-05-30");
     expect(prompt).toContain("Yesterday highlighted a breakfast Protein Anchor.");
     expect(prompt).toContain("1. 9:15 am - note: eggs after gym");
+    expect(prompt).toContain("Entry 1 describes Image 1, Entry 2 describes Image 2");
+    expect(prompt).toContain("Meal period names must come from the timestamp");
+    expect(prompt).toContain("If a food visually resembles dinner but the timestamp is in the morning");
+    expect(prompt).toContain("Do not label a morning timestamp as dinner.");
     expect(prompt).toContain("You may only propose ONE micro-adjustment per review.");
     expect(prompt).toContain("continuity context only");
     expect(prompt).toContain("Do not let previous summaries override today's photos and notes.");
