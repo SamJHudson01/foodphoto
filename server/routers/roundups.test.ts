@@ -204,6 +204,12 @@ describe("roundup deterministic boundaries", () => {
     expect(prompt).toContain("2026-05-30");
     expect(prompt).toContain("Yesterday highlighted a breakfast Protein Anchor.");
     expect(prompt).toContain("1. 9:15 am - note: eggs after gym");
+    expect(prompt).toContain("Use a calm, disciplined, high-ownership coaching style.");
+    expect(prompt).toContain("The response should feel like: reality, ownership, next action.");
+    expect(prompt).toContain("No theatrical toughness.");
+    expect(prompt).toContain("The next action is...");
+    expect(prompt).toContain("That is the standard...");
+    expect(prompt).toContain("Phrase it as a direct next action, not a lecture and not a negotiation.");
     expect(prompt).toContain("Entry 1 describes Image 1, Entry 2 describes Image 2");
     expect(prompt).toContain("Meal period names must come from the timestamp");
     expect(prompt).toContain("If a food visually resembles dinner but the timestamp is in the morning");
@@ -211,7 +217,7 @@ describe("roundup deterministic boundaries", () => {
     expect(prompt).toContain("You may only propose ONE micro-adjustment per review.");
     expect(prompt).toContain("continuity context only");
     expect(prompt).toContain("Do not let previous summaries override today's photos and notes.");
-    expect(prompt).toContain("Name and briefly describe each visible meal or eating occasion.");
+    expect(prompt).toContain("Name the pattern plainly, then give the next executable move.");
     expect(prompt).toContain("Give a comprehensive day-quality read.");
     expect(prompt).toContain("You are strictly forbidden from estimating calories, macros in grams, or predicting weight loss.");
   });
