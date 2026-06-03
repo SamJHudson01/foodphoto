@@ -186,7 +186,7 @@ describe("roundup deterministic boundaries", () => {
     expect(summary).toBe("1. 9:15 am - note: breakfast\n2. 9:05 pm - note: dinner");
   });
 
-  it("builds a prompt that forces meal bullets, comprehensive rundown, and one micro-adjustment", () => {
+  it("builds a prompt that forces timeline analysis, longitudinal pattern reading, and one micro-adjustment", () => {
     const prompt = buildCoachPrompt(
       "Today 31 May",
       "1. 9:15 am - note: eggs after gym",
@@ -194,32 +194,37 @@ describe("roundup deterministic boundaries", () => {
     );
 
     expect(prompt).toContain("Overview:");
-    expect(prompt).toContain("Meals:");
-    expect(prompt).toContain("Rundown:");
-    expect(prompt).toContain("Observations:");
+    expect(prompt).toContain("Timeline:");
+    expect(prompt).toContain("Pattern Read:");
+    expect(prompt).toContain("Main Observation:");
     expect(prompt).toContain("Experiment:");
-    expect(prompt).toContain("Identity:");
+    expect(prompt).toContain("Standard:");
     expect(prompt).toContain("Day: Today 31 May");
     expect(prompt).toContain("Previous 7 Days Coach Summaries:");
     expect(prompt).toContain("2026-05-30");
     expect(prompt).toContain("Yesterday highlighted a breakfast Protein Anchor.");
     expect(prompt).toContain("1. 9:15 am - note: eggs after gym");
-    expect(prompt).toContain("Use a calm, disciplined, high-ownership coaching style.");
-    expect(prompt).toContain("The response should feel like: reality, ownership, next action.");
-    expect(prompt).toContain("No theatrical toughness.");
-    expect(prompt).toContain("The next action is...");
-    expect(prompt).toContain("That is the standard...");
-    expect(prompt).toContain("Phrase it as a direct next action, not a lecture and not a negotiation.");
-    expect(prompt).toContain("Entry 1 describes Image 1, Entry 2 describes Image 2");
-    expect(prompt).toContain("Meal period names must come from the timestamp");
-    expect(prompt).toContain("If a food visually resembles dinner but the timestamp is in the morning");
-    expect(prompt).toContain("Do not label a morning timestamp as dinner.");
-    expect(prompt).toContain("You may only propose ONE micro-adjustment per review.");
-    expect(prompt).toContain("continuity context only");
-    expect(prompt).toContain("Do not let previous summaries override today's photos and notes.");
-    expect(prompt).toContain("Name the pattern plainly, then give the next executable move.");
-    expect(prompt).toContain("Give a comprehensive day-quality read.");
-    expect(prompt).toContain("You are strictly forbidden from estimating calories, macros in grams, or predicting weight loss.");
+    expect(prompt).toContain("You are an Evidence-Based Food Log Analyst and Behavioral Nutrition Coach.");
+    expect(prompt).toContain("You are not here to be nice.");
+    expect(prompt).toContain("Use a disciplined, no-bullshit coaching voice.");
+    expect(prompt).toContain("Bad language is allowed when it adds force, but do not overuse it.");
+    expect(prompt).toContain("This is where the day started leaking.");
+    expect(prompt).toContain("Do not cushion every observation. The user does not want gentle. They want useful.");
+    expect(prompt).toContain("You ate again within 2 hours. That means the previous meal or snack probably failed its job.");
+    expect(prompt).toContain("Entry 1 describes Image 1.");
+    expect(prompt).toContain("Meal period names must come from the timestamp, not from visual assumptions.");
+    expect(prompt).toContain("TIMING AND SATIETY CHAIN");
+    expect(prompt).toContain("Previous 7 days are evidence, not background decoration.");
+    expect(prompt).toContain("Today confirms the previous pattern...");
+    expect(prompt).toContain("You ate again less than 2 hours later. So the previous entry probably did not hold.");
+    expect(prompt).toContain("This was not a meal. It was a patch.");
+    expect(prompt).toContain("The Main Observation should be the hardest-hitting part of the review.");
+    expect(prompt).toContain("The final Standard line should sound firm and operational.");
+    expect(prompt).toContain("Pick exactly ONE highest-leverage lever.");
+    expect(prompt).toContain("Each review must end with exactly one micro-adjustment.");
+    expect(prompt).toContain("No calorie estimates.");
+    expect(prompt).toContain("No macro estimates.");
+    expect(prompt).toContain("No weight-loss predictions.");
   });
 
   it("formats previous coach summaries as explicit chronological context with a no-history fallback", () => {
