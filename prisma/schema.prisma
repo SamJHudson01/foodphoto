@@ -7,12 +7,15 @@ datasource db {
 }
 
 model User {
-  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  clerkUserId String         @unique
-  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
-  updatedAt   DateTime       @updatedAt @db.Timestamptz(6)
-  entries     FoodEntry[]
-  roundups    DailyRoundup[]
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clerkUserId           String                 @unique
+  createdAt             DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime               @updatedAt @db.Timestamptz(6)
+  entries               FoodEntry[]
+  roundups              DailyRoundup[]
+  guitarPracticeItems   GuitarPracticeItem[]
+  guitarPracticeDays    GuitarPracticeDay[]
+  guitarPracticeReviews GuitarPracticeReview[]
 }
 
 model FoodEntry {
@@ -37,6 +40,69 @@ model FoodEntry {
 }
 
 model DailyRoundup {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @db.Uuid
+  dayStart    DateTime @db.Date
+  text        String
+  generatedAt DateTime @default(now()) @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayStart])
+  @@index([userId, dayStart])
+}
+
+model GuitarPracticeItem {
+  id                    String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String                  @db.Uuid
+  label                 String
+  defaultSeedKey        String?
+  defaultPlannedSeconds Int
+  sortOrder             Int
+  archivedAt            DateTime?               @db.Timestamptz(6)
+  createdAt             DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime                @updatedAt @db.Timestamptz(6)
+  user                  User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs                  GuitarPracticeItemLog[]
+
+  @@index([userId, sortOrder])
+  @@unique([userId, defaultSeedKey])
+}
+
+model GuitarPracticeDay {
+  id           String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String                  @db.Uuid
+  practiceDate DateTime                @db.Date
+  comment      String                  @default("")
+  createdAt    DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime                @updatedAt @db.Timestamptz(6)
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  itemLogs     GuitarPracticeItemLog[]
+
+  @@unique([userId, practiceDate])
+  @@index([userId, practiceDate])
+}
+
+model GuitarPracticeItemLog {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  practiceDayId      String             @db.Uuid
+  practiceItemId     String             @db.Uuid
+  itemLabelSnapshot  String
+  plannedSeconds     Int
+  elapsedSeconds     Int                @default(0)
+  completed          Boolean            @default(false)
+  createdAt          DateTime           @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(6)
+  practiceDay        GuitarPracticeDay  @relation(fields: [practiceDayId], references: [id], onDelete: Cascade)
+  practiceItem       GuitarPracticeItem @relation(fields: [practiceItemId], references: [id], onDelete: Restrict)
+
+  @@unique([practiceDayId, practiceItemId])
+  @@index([practiceDayId])
+  @@index([practiceItemId])
+}
+
+model GuitarPracticeReview {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId      String   @db.Uuid
   dayStart    DateTime @db.Date

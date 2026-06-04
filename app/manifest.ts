@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Food Photos",
-    short_name: "Food Photos",
-    description: "A personal food photo tracker.",
+    name: "SamApp",
+    short_name: "SamApp",
+    description: "A private personal evidence tracker.",
     start_url: "/",
     display: "standalone",
     background_color: "#f7f2ea",
@@ -12,9 +12,9 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     icons: [
       {
-        src: "/icon.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "/sam.jpeg",
+        sizes: "1024x1024",
+        type: "image/jpeg",
         purpose: "any"
       }
     ]

@@ -28,6 +28,14 @@
   text-align: center;
 }
 
+.authLogo {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border: 1px solid rgba(229, 168, 75, 0.3);
+  border-radius: 8px;
+}
+
 .authPanel h1 {
   margin: 18px 0 0;
   font-family: var(--font-display);
@@ -47,6 +55,51 @@
   top: calc(env(safe-area-inset-top) + 10px);
   right: 12px;
   z-index: 80;
+}
+
+.tabbar {
+  position: fixed;
+  right: max(0px, calc((100% - 720px) / 2));
+  bottom: 0;
+  left: max(0px, calc((100% - 720px) / 2));
+  z-index: 80;
+  height: 60px;
+  display: flex;
+  align-items: stretch;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-base) 84%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+
+.tabbar button {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  color: var(--text-tertiary);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tabbar svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.tabbar .tabOn {
+  color: var(--accent-amber);
 }
 
 .appSurface {
@@ -212,6 +265,15 @@
   gap: 9px;
 }
 
+.logoImage {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid rgba(229, 168, 75, 0.26);
+  border-radius: 7px;
+}
+
 .brandMark {
   position: relative;
   width: 20px;
@@ -252,6 +314,18 @@
   font-family: var(--font-mono);
   font-size: 11px;
   white-space: nowrap;
+}
+
+.secondaryButton {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(229, 168, 75, 0.24);
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.045);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .daySection {
@@ -481,6 +555,723 @@
   font-size: 12px;
 }
 
+.guitarHeader {
+  padding-top: calc(env(safe-area-inset-top) + 28px);
+}
+
+.guitarMark {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: #1a1208;
+  background: var(--accent-amber);
+}
+
+.guitarMark svg,
+.iconButton svg,
+.practicePlay svg,
+.timerToggle svg,
+.settingsTrash svg,
+.settingsAddButton svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.practicePlay svg,
+.timerToggle svg {
+  fill: currentColor;
+  stroke: none;
+}
+
+.iconButton {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-tertiary);
+  background: transparent;
+}
+
+.iconButton svg {
+  width: 28px;
+  height: 28px;
+}
+
+.practiceDaySection {
+  position: relative;
+}
+
+.practiceCard {
+  margin: 8px 20px 12px;
+  padding: 18px 24px 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--bg-surface);
+}
+
+.practiceCardToday {
+  border-color: var(--accent-amber);
+}
+
+.practiceItemRow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 13px 0;
+}
+
+.practiceItemRow + .practiceItemRow {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.practicePlay {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.practicePlay svg {
+  width: 16px;
+  height: 16px;
+}
+
+.practiceCheckmark {
+  color: var(--accent-amber);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.practiceDot {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.practiceDot::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+
+.practiceDotOn::before {
+  background: var(--accent-amber);
+}
+
+.practiceItemMain {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 8px;
+}
+
+.practiceItemLine {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.practiceItemName {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.practiceItemTime {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.practiceItemTime span {
+  color: var(--text-tertiary);
+}
+
+.practiceProgress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.practiceProgress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-amber);
+}
+
+.practiceNote {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.practiceNote span {
+  color: var(--text-tertiary);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.practiceNote textarea {
+  width: 100%;
+  min-height: 38px;
+  resize: vertical;
+  padding: 8px 0 0;
+  border: 0;
+  color: var(--text-primary);
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  outline: none;
+}
+
+.practiceSavedNote {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.practiceReviewHint {
+  margin: 0 20px 18px;
+  color: var(--accent-amber);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.timerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--text-primary);
+  background: var(--bg-base);
+}
+
+.timerCancel {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 28px);
+  left: 20px;
+  padding: 0;
+  border: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  font-size: 17px;
+}
+
+.timerName {
+  margin-top: calc(env(safe-area-inset-top) + 92px);
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.timerSub {
+  margin-top: 14px;
+  color: var(--text-tertiary);
+  font-size: 18px;
+}
+
+.timerRing {
+  position: relative;
+  width: 300px;
+  height: 300px;
+  margin-top: 84px;
+}
+
+.timerRing svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.timerRing circle {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.11);
+  stroke-width: 8;
+}
+
+.timerRingProgress {
+  stroke: var(--accent-amber) !important;
+  stroke-dasharray: 829.38;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.timerDigits {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.timerDigits span {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.timerDigits small {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 16px;
+}
+
+.timerControls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 56px;
+}
+
+.timerToggle {
+  width: 68px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 999px;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+
+.timerToggle svg {
+  width: 26px;
+  height: 26px;
+}
+
+.timerDone {
+  min-width: 176px;
+  height: 68px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 999px;
+  color: #1a1208;
+  background: var(--accent-amber);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.timerDone:disabled {
+  opacity: 0.48;
+}
+
+.settingsSheet {
+  width: min(100%, 720px);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 72px) 32px calc(env(safe-area-inset-bottom) + 92px);
+  color: var(--text-primary);
+  background: var(--bg-base);
+}
+
+.settingsOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  background: var(--bg-base);
+}
+
+.settingsHead {
+  flex-shrink: 0;
+  margin-bottom: 28px;
+}
+
+.settingsHead h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.settingsHead p {
+  margin: 14px 0 0;
+  color: var(--text-tertiary);
+  font-size: 18px;
+  line-height: 1.35;
+}
+
+.settingsBody {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.settingsRows {
+  display: grid;
+  gap: 14px;
+}
+
+.settingsRow,
+.settingsAdd {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 84px 48px 44px;
+  align-items: center;
+  gap: 14px;
+}
+
+.settingsAdd {
+  grid-template-columns: 168px;
+  justify-items: start;
+  margin-top: 22px;
+}
+
+.settingsRow input,
+.settingsAdd input {
+  min-width: 0;
+  height: 58px;
+  padding: 0 20px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  color: var(--text-primary);
+  background: var(--bg-input);
+  font: inherit;
+  font-size: 22px;
+  outline: none;
+}
+
+.settingsMinutes {
+  padding: 0 !important;
+  text-align: center;
+  font-family: var(--font-mono) !important;
+}
+
+.settingsMinLabel {
+  color: var(--text-tertiary);
+  font-size: 18px;
+}
+
+.settingsTrash {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  color: var(--text-tertiary);
+  background: transparent;
+}
+
+.settingsTrash svg {
+  width: 22px;
+  height: 22px;
+}
+
+.settingsAddButton {
+  min-height: 58px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 18px;
+  border: 1px dashed var(--border-default);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.settingsAddButton svg {
+  width: 22px;
+  height: 22px;
+}
+
+.settingsAdd input,
+.settingsAdd .settingsMinLabel {
+  display: none;
+}
+
+.settingsActions {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: auto -8px 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.settingsActions button {
+  min-height: 64px;
+  border: 1px solid var(--border-default);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.settingsActions button:last-child {
+  border-color: var(--accent-amber);
+  color: #1a1208;
+  background: var(--accent-amber);
+}
+
+.settingsRow input:disabled,
+.settingsTrash:disabled,
+.settingsAddButton:disabled,
+.settingsActions button:disabled {
+  cursor: default;
+  opacity: 0.58;
+}
+
+.practiceReviewTucked {
+  margin: 0 20px 22px;
+}
+
+.practiceReviewTucked button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 0;
+  border: 0;
+  color: var(--text-secondary);
+  background: transparent;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.practiceReviewTucked svg,
+.practiceReviewMark svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
+.practiceReviewCard {
+  margin: 12px 20px 22px;
+  padding: 24px;
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  background: var(--bg-surface);
+}
+
+.practiceReviewHead {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+  color: var(--text-tertiary);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.practiceReviewMark {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--accent-amber);
+  background: rgba(229, 168, 75, 0.15);
+}
+
+.practiceReviewDots {
+  margin-left: auto;
+  color: var(--accent-amber);
+  letter-spacing: 0.14em;
+}
+
+.practiceReviewLoading {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: 18px;
+  font-style: italic;
+}
+
+.practiceReviewOverview {
+  margin: 0 0 24px;
+  color: var(--text-primary);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.42;
+}
+
+.practiceReviewSubhead {
+  margin: 0 0 12px;
+  color: var(--text-tertiary);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.practiceReviewList {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 24px;
+  padding: 0;
+  list-style: none;
+}
+
+.practiceReviewList li {
+  position: relative;
+  padding-left: 22px;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1.42;
+}
+
+.practiceReviewList li::before {
+  content: "";
+  position: absolute;
+  top: 0.72em;
+  left: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent-amber);
+}
+
+.practiceBottleneck {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid rgba(229, 168, 75, 0.4);
+  border-radius: 10px;
+  background: rgba(229, 168, 75, 0.13);
+}
+
+.practiceBottleneck svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  fill: none;
+  stroke: var(--accent-amber);
+  stroke-width: 1.9;
+}
+
+.practiceBottleneck span,
+.practiceTomorrow span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--accent-amber);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.practiceBottleneck p,
+.practiceTomorrow p {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.practiceTomorrow {
+  margin-bottom: 18px;
+  padding: 16px;
+  border-radius: 10px;
+  background: rgba(229, 168, 75, 0.14);
+}
+
+.practiceReviewFoot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.practiceReviewFoot span {
+  min-width: 0;
+  flex: 1;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.practiceReviewFoot button {
+  padding: 0;
+  border: 0;
+  color: var(--text-tertiary);
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .practiceCard {
+    margin-right: 16px;
+    margin-left: 16px;
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .settingsSheet {
+    padding-right: 22px;
+    padding-left: 22px;
+  }
+
+  .settingsRow {
+    grid-template-columns: minmax(0, 1fr) 72px 42px 36px;
+    gap: 10px;
+  }
+
+  .settingsRow input {
+    font-size: 18px;
+  }
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -529,7 +1320,7 @@
 
 .fab {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + 24px);
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
   left: 50%;
   z-index: 30;
   display: flex;

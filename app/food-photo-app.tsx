@@ -422,10 +422,8 @@ export default function FoodPhotoApp() {
       <section className={styles.appSurface} aria-label="FoodPhoto">
         <header className={styles.header}>
           <div className={styles.brand}>
-            <span className={styles.brandMark} />
-            <span className={styles.brandName}>
-              Food<span>Photo</span>
-            </span>
+            <img className={styles.logoImage} src="/sam.jpeg" alt="" />
+            <span className={styles.brandName}>SamApp</span>
           </div>
           <p className={styles.loggedCount}>{entries.length} logged</p>
         </header>

@@ -19,9 +19,9 @@ const csp = [
   "img-src 'self' blob: data: https: " + r2ImageOrigin,
   "media-src 'self' blob:",
   "connect-src 'self' " + clerkConnectSources + " " + r2ImageOrigin,
-  `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""} https://*.clerk.accounts.dev https://*.clerk.dev https://*.clerk.com`,
-  "style-src 'self' 'unsafe-inline'",
-  "font-src 'self' data:",
+  `script-src 'self'${process.env.NODE_ENV === "development" ? " 'unsafe-inline' 'unsafe-eval'" : ""} https://*.clerk.accounts.dev https://*.clerk.dev https://*.clerk.com`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
   "worker-src 'self' blob:",
   "form-action 'self' https://*.clerk.accounts.dev https://*.clerk.dev https://*.clerk.com"
 ].join("; ");

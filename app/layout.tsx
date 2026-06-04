@@ -4,16 +4,16 @@ import { TRPCProvider } from "./trpc-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Food Photos",
-  description: "A personal food photo tracker.",
-  applicationName: "Food Photos",
+  title: "SamApp",
+  description: "A private personal evidence tracker.",
+  applicationName: "SamApp",
   icons: {
-    icon: "/icon.svg",
-    apple: "/icon.svg"
+    icon: "/sam.jpeg",
+    apple: "/sam.jpeg"
   },
   appleWebApp: {
     capable: true,
-    title: "Food Photos",
+    title: "SamApp",
     statusBarStyle: "default"
   },
   formatDetection: {
