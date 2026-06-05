@@ -63,10 +63,10 @@
   bottom: 0;
   left: max(0px, calc((100% - 720px) / 2));
   z-index: 80;
-  height: 60px;
+  height: calc(64px + env(safe-area-inset-bottom));
   display: flex;
   align-items: stretch;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding: 6px 0 env(safe-area-inset-bottom);
   border-top: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--bg-base) 84%, transparent);
   backdrop-filter: blur(18px) saturate(160%);
@@ -80,6 +80,7 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
+  padding: 0 0 4px;
   border: 0;
   color: var(--text-tertiary);
   background: transparent;
